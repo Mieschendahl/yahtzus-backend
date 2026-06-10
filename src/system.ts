@@ -1,42 +1,25 @@
 import { Socket } from "socket.io";
 import { AppSocket } from "./server";
-import { ClientData } from "./shared/socket-types";
+import { ClientData, ColumnIO, DiceIO, FieldId, GameIO, isFieldId, PlayerIO, StateIO } from "./shared/socket-types";
 import { random } from "./utils";
-
-export const FIELD_ID = [
-  "ones",
-  "twos",
-  "threes",
-  "fours",
-  "fives",
-  "sixes",
-] as const;
-
-export type FieldId = typeof FIELD_ID[number];
-
-export type Column = Partial<Record<FieldId, number>>;
-
-function isFieldId(value: FieldId): boolean {
-  return FIELD_ID.includes(value);
-}
 
 class Player {
   constructor(
     public userId: string,
-    public column: Column = {}
+    public column: ColumnIO = {}
   ) {}
-}
 
-type State = (
-  | {
-    kind: "lobby",
-    data?: undefined
+  getTotalValue() {
+    return Object.keys(this.column).map(key => this.column[key as FieldId])
   }
-  | {
-    kind: "playing"
-    data?: undefined
+
+  toIO(): PlayerIO {
+    return {
+      userId: this.userId,
+      column: this.column
+    };
   }
-);
+}
 
 class Dice {
   constructor(
@@ -46,6 +29,13 @@ class Dice {
 
   roll() {
     this.num = random.integer(1, 6)
+  }
+
+  toIO(): DiceIO {
+    return {
+      num: this.num,
+      selected: this.selected
+    };
   }
 
   static createDice(): Dice[] {
@@ -59,7 +49,7 @@ class Game {
     public dices: Dice[] = Dice.createDice(),
     public activePlayerId?: number,
     public rollCount?: number,
-    public state: State = { kind: "lobby" }
+    public state: StateIO = { kind: "lobby" }
   ) {}
 
   getPlayer(userId: string): Player | undefined {
@@ -125,7 +115,7 @@ class Game {
     selected.forEach((selected_, i) => this.dices[i].selected = selected_)
   }
 
-  private getValue(fieldId: FieldId): number {
+  getValue(fieldId: FieldId): number {
     const counts = Array.from({length: 6}, () => 0);
     this.dices.forEach(dice => counts[dice.num]++);
     switch (fieldId) {
@@ -156,6 +146,16 @@ class Game {
     
     const player = this.getActivePlayer(userId);
     player!.column[fieldId] = this.getValue(fieldId);
+  }
+
+  toIO(): GameIO {
+    return {
+      players: this.players.map(player => player.toIO()),
+      dices: this.dices.map(dice => dice.toIO()),
+      activePlayerId: this.activePlayerId,
+      rollCount: this.rollCount,
+      state: this.state
+    };
   }
 }
 

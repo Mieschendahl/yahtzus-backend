@@ -1,3 +1,49 @@
+export const FIELD_ID = [
+  "ones",
+  "twos",
+  "threes",
+  "fours",
+  "fives",
+  "sixes"
+] as const;
+
+export type FieldId = typeof FIELD_ID[number];
+
+export type ColumnIO = Partial<Record<FieldId, number>>;
+
+export function isFieldId(value: FieldId): boolean {
+  return FIELD_ID.includes(value);
+}
+
+export type StateIO = (
+  | {
+    kind: "lobby",
+    data?: undefined
+  }
+  | {
+    kind: "playing"
+    data?: undefined
+  }
+);
+
+export type PlayerIO = {
+  userId: string;
+  column: ColumnIO;
+};
+
+export type DiceIO = {
+  num: number;
+  selected: boolean;
+}
+
+export type GameIO = {
+  players: PlayerIO[]
+  dices: DiceIO[];
+  activePlayerId?: number;
+  rollCount?: number;
+  state: StateIO;
+};
+
 export type ClientData = (
   | {
     kind: "join room";
