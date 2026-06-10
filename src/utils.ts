@@ -7,6 +7,10 @@ export function setRandomSeed(seed: number): void {
   random = new Random(MersenneTwister19937.seed(seed));
 }
 
+export function sum(ls: number[]): number {
+  return ls.reduce((a, b) => a + b, 0);
+}
+
 export function findMin<T>(
   items: T[],
   valueFn: (item: T) => number

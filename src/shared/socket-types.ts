@@ -5,13 +5,9 @@ export const FIELD_ID = [
   "fours",
   "fives",
   "sixes"
-] as const;
+];
 
-export type FieldId = typeof FIELD_ID[number];
-
-export type ColumnIO = Partial<Record<FieldId, number>>;
-
-export function isFieldId(value: FieldId): boolean {
+export function isFieldId(value: string): boolean {
   return FIELD_ID.includes(value);
 }
 
@@ -26,9 +22,16 @@ export type StateIO = (
   }
 );
 
+export type FieldData = {
+  value?: number;
+  isPreview: boolean;
+};
+
+export type FieldIO = Record<string, FieldData>;
+
 export type PlayerIO = {
   userId: string;
-  column: ColumnIO;
+  fields: FieldIO;
 };
 
 export type DiceIO = {
@@ -57,7 +60,7 @@ export type ClientData = (
   }
   | {
     kind: "join players";
-    data: undefined
+    data?: undefined
   }
   | {
     kind: "leave players";
@@ -92,7 +95,9 @@ export type ClientToServerEvents = {
 export type ServerData = (
   | {
     kind: "set game";
-    data: GameIO;
+    data: {
+      game: GameIO
+    }
   }
 );
 

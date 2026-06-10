@@ -1,47 +1,7 @@
-import { Socket } from "socket.io";
 import { AppSocket, io } from "./server";
-import { ClientData, ColumnIO, DiceIO, FieldId, GameIO, isFieldId, PlayerIO, StateIO } from "./shared/socket-types";
+import { ClientData, GameIO, isFieldId, StateIO } from "./shared/socket-types";
 import { random } from "./utils";
-
-class Player {
-  constructor(
-    public userId: string,
-    public column: ColumnIO = {}
-  ) {}
-
-  getTotalValue() {
-    return Object.keys(this.column).map(key => this.column[key as FieldId])
-  }
-
-  toIO(): PlayerIO {
-    return {
-      userId: this.userId,
-      column: this.column
-    };
-  }
-}
-
-class Dice {
-  constructor(
-    public num: number = 1,
-    public selected: boolean = true
-  ) {}
-
-  roll() {
-    this.num = random.integer(1, 6)
-  }
-
-  toIO(): DiceIO {
-    return {
-      num: this.num,
-      selected: this.selected
-    };
-  }
-
-  static createDice(): Dice[] {
-    return Array.from({length: 5}, () => new Dice());
-  }
-}
+import { Dice, Player } from "./models";
 
 class Game {
   constructor(
@@ -101,8 +61,24 @@ class Game {
       return;
     if (!this.getActivePlayer(userId))
       return;
-    
-    this.dices.forEach(dice => dice.roll());
+    if (this.rollCount! >= 3)
+      return;
+    const player = this.getActivePlayer(userId)!;
+
+    this.dices.forEach(dice => {
+      if (dice.selected) {
+        dice.roll();
+      }
+    });
+    Object.keys(player.fields).forEach(fieldId => {
+      const fieldData = player.fields[fieldId];
+      if (fieldData.value === undefined) {
+        player.fields[fieldId] = {
+          value: player.getFieldValue(fieldId),
+          isPreview: true
+        };
+      }
+    })
     this.sendAll();
   }
 
@@ -120,7 +96,7 @@ class Game {
     this.sendAll();
   }
 
-  getValue(fieldId: FieldId): number {
+  getValue(fieldId: string): number {
     const counts = Array.from({length: 6}, () => 0);
     this.dices.forEach(dice => counts[dice.num]++);
     switch (fieldId) {
@@ -137,9 +113,10 @@ class Game {
       case "sixes":
         return counts[6] * 6;
     }
+    throw "impossible";
   }
 
-  selectField(userId: string, fieldId: FieldId) {
+  selectField(userId: string, fieldId: string) {
     if (this.state.kind !== "lobby")
       return;
     if (!this.getActivePlayer(userId))
@@ -148,9 +125,24 @@ class Game {
       return;
     if (!isFieldId(fieldId))
       return;
+    const player = this.getActivePlayer(userId)!;
+    if (player.getFieldValue(fieldId) !== undefined)
+      return;
     
-    const player = this.getActivePlayer(userId);
-    player!.column[fieldId] = this.getValue(fieldId);
+    player.fields[fieldId] = {
+      value: this.getValue(fieldId),
+      isPreview: false
+    };
+    Object.keys(player.fields).forEach(fieldId => {
+      const fieldData = player.fields[fieldId];
+      if (fieldData.isPreview) {
+        player.fields[fieldId] = {
+          value: undefined,
+          isPreview: false
+        };
+      }
+    })
+    this.dices.forEach(dice => dice.selected = true);
     this.sendAll();
   }
 
@@ -158,12 +150,16 @@ class Game {
     if (socket) {
       socket.emit("send", {
         kind: "set game",
-        data: this.toIO()
+        data: {
+          game: this.toIO()
+        }
       });
     } else {
       io.to("room").emit("send", {
         kind: "set game",
-        data: this.toIO()
+        data: {
+          game: this.toIO()
+        }
       });
     }
   }
