@@ -92,7 +92,7 @@ export type ClientToServerEvents = {
 export type ServerData = (
   | {
     kind: "set game";
-    data: undefined;
+    data: GameIO;
   }
 );
 

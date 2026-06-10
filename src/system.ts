@@ -1,5 +1,5 @@
 import { Socket } from "socket.io";
-import { AppSocket } from "./server";
+import { AppSocket, io } from "./server";
 import { ClientData, ColumnIO, DiceIO, FieldId, GameIO, isFieldId, PlayerIO, StateIO } from "./shared/socket-types";
 import { random } from "./utils";
 
@@ -70,6 +70,7 @@ class Game {
       return;
 
     this.players.push(new Player(userId));
+    this.sendAll();
   }
 
   leavePlayers(userId: string) {
@@ -77,6 +78,7 @@ class Game {
       return;
 
     this.players = this.players.filter(player => player.userId === userId);
+    this.sendAll();
   }
 
   startGame(userId: string) {
@@ -91,6 +93,7 @@ class Game {
     this.dices = Dice.createDice();
     this.activePlayerId = 1;
     this.rollCount = 0;
+    this.sendAll();
   }
 
   rollDice(userId: string) {
@@ -100,6 +103,7 @@ class Game {
       return;
     
     this.dices.forEach(dice => dice.roll());
+    this.sendAll();
   }
 
   selectDice(userId: string, selected: boolean[]) {
@@ -112,7 +116,8 @@ class Game {
     if (selected.length !== 5)
       return;
   
-    selected.forEach((selected_, i) => this.dices[i].selected = selected_)
+    selected.forEach((selected_, i) => this.dices[i].selected = selected_);
+    this.sendAll();
   }
 
   getValue(fieldId: FieldId): number {
@@ -146,6 +151,21 @@ class Game {
     
     const player = this.getActivePlayer(userId);
     player!.column[fieldId] = this.getValue(fieldId);
+    this.sendAll();
+  }
+
+  sendAll(socket?: AppSocket) {
+    if (socket) {
+      socket.emit("send", {
+        kind: "set game",
+        data: this.toIO()
+      });
+    } else {
+      io.to("room").emit("send", {
+        kind: "set game",
+        data: this.toIO()
+      });
+    }
   }
 
   toIO(): GameIO {
@@ -226,6 +246,9 @@ class Room {
         this.socketMap.set(socket, {});
       }
     }
+
+    socket.join("room");
+    this.game.sendAll(socket);
   }
 
   leaveRoom(socket: AppSocket) {
