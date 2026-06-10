@@ -8,15 +8,18 @@ importers:
 
   .:
     dependencies:
+      random-js:
+        specifier: ^2.1.0
+        version: 2.1.0
       socket.io:
         specifier: ^4.8.3
         version: 4.8.3
     devDependencies:
       '@types/node':
-        specifier: ^25.9.1
+        specifier: ^25.6.0
         version: 25.9.1
       tsx:
-        specifier: ^4.22.3
+        specifier: ^4.21.0
         version: 4.22.3
       typescript:
         specifier: ^6.0.3
@@ -254,6 +257,9 @@ packages:
     resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
     engines: {node: '>=0.10.0'}
 
+  random-js@2.1.0:
+    resolution: {integrity: sha512-CRUyWmnzmZBA7RZSVGq0xMqmgCyPPxbiKNLFA5ud7KenojVX2s7Gv+V7eB52beKTPGxWRnVZ7D/tCIgYJJ8vNQ==}
+
   socket.io-adapter@2.5.7:
     resolution: {integrity: sha512-e0LyK91f3cUxTmv95/KzoLg47+zF+s/sbxRGDNsyG4dmIP8ZSX8ax6byOxfJXeNNtS/8AZlfD+uP7gBeR7DLlg==}
 
@@ -468,6 +474,8 @@ snapshots:
   negotiator@0.6.3: {}
 
   object-assign@4.1.1: {}
+
+  random-js@2.1.0: {}
 
   socket.io-adapter@2.5.7:
     dependencies:

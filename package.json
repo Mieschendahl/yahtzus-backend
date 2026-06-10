@@ -5,15 +5,11 @@
   "scripts": {
     "push-test": "git push origin develop && git checkout test && git merge develop && git push && git checkout develop",
     "push-prod": "git push origin develop && git checkout prod && git merge test && git push && git checkout develop",
-
     "dev": "STAGE=local tsx watch src/server.ts",
-
     "build": "tsc",
-
     "start": "node dist/server.js",
     "start:test": "STAGE=test node dist/server.js",
     "start:prod": "STAGE=prod node dist/server.js",
-
     "run:test": "pnpm build && pnpm start:test",
     "run:prod": "pnpm build && pnpm start:prod"
   },
@@ -22,6 +18,7 @@
   "license": "ISC",
   "packageManager": "pnpm@10.33.0",
   "dependencies": {
+    "random-js": "^2.1.0",
     "socket.io": "^4.8.3"
   },
   "devDependencies": {

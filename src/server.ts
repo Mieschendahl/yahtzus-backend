@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { Server, Socket } from "socket.io";
-import { ClientData, ClientToServerEvents, ServerCb, ServerToClientEvents } from "./shared/socket-types";
+import { ClientData, ClientToServerEvents, ServerToClientEvents } from "./shared/socket-types";
 
 const stage = process.env.STAGE ?? "local";
 
@@ -9,10 +9,10 @@ const config = {
     origin: "http://localhost:3010",
   },
   test: {
-    origin: "https://test.dominoes.goolagoon.org"
+    origin: "https://test.yahtzus.goolagoon.org"
   },
   prod: {
-    origin: "https://dominoes.goolagoon.org",
+    origin: "https://yahtzus.goolagoon.org",
   },
 }[stage]!;
 
@@ -35,6 +35,12 @@ export const io = new Server<ClientToServerEvents, ServerToClientEvents>(
 export type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
 io.on("connection", (socket: AppSocket) => {
+  socket.on("disconnect", () => {
+  });
+
+  socket.on("send", (data: ClientData) => {
+    console.log(data);
+  });
 });
 
 server.listen(port, () => {
