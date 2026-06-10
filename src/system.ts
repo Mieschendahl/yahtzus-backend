@@ -26,6 +26,7 @@ class Game {
   }
 
   joinPlayers(userId: string) {
+    // console.log("join", userId, this.players)
     if (this.getPlayer(userId))
       return;
 
@@ -34,10 +35,11 @@ class Game {
   }
 
   leavePlayers(userId: string) {
+    // console.log("leave", userId, this.players)
     if (!this.getPlayer(userId))
       return;
 
-    this.players = this.players.filter(player => player.userId === userId);
+    this.players = this.players.filter(player => player.userId !== userId);
     this.sendAll();
   }
 
@@ -234,29 +236,29 @@ class Room {
   joinRoom(socket: AppSocket, userId?: string) {
     userId = userId ?? "";
     userId = userId.trim()
-    if (userId) {
-      if (!this.userIdMap.get(userId)?.socket) {
-        this.socketMap.set(socket, {userId});
-        this.userIdMap.set(userId, {socket});
-      } else {
-        this.socketMap.set(socket, {});
-      }
+
+    this.socketMap.set(socket, {userId});
+    if (userId && !this.userIdMap.get(userId)?.socket) {
+      this.userIdMap.set(userId, {socket});
     }
 
     socket.join("room");
+    this.handleClientData(socket, {
+      kind: "join players"
+    });
     this.game.sendAll(socket);
   }
 
   leaveRoom(socket: AppSocket) {
-    this.socketMap.delete(socket);
+    this.handleClientData(socket, {
+      kind: "leave players"
+    });
     const userId = this.getValidUserId(socket);
+    this.socketMap.delete(socket);
     if (userId) {
       this.userIdMap.delete(userId);
     }
-  }
-
-  sendAll(socket: AppSocket) {
-
+    socket.leave("room");
   }
 }
 
@@ -270,7 +272,9 @@ class System {
     switch (kind) {
       case "join room":
         const { userId } = data;
-        this.room.leaveRoom(socket);
+        this.handleClientData(socket, {
+          kind: "leave room"
+        });
         this.room.joinRoom(socket, userId);
         break;
       case "leave room":
