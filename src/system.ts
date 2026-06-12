@@ -17,7 +17,7 @@ class Game {
   }
 
   getActivePlayer(userId: string): Player | undefined {
-    if (!this.activePlayerId)
+    if (this.activePlayerId === undefined)
       return undefined;
     const player = this.players[this.activePlayerId];
     if (player.userId !== userId)
@@ -58,8 +58,9 @@ class Game {
     this.sendAll();
   }
 
-  rollDice(userId: string) {
-    if (this.state.kind !== "lobby")
+  rollDices(userId: string) {
+    // console.log("reached moi", this.state.kind !== "playing", !this.getActivePlayer(userId), this.rollCount! >= 3, this.activePlayerId, this.players)
+    if (this.state.kind !== "playing")
       return;
     if (!this.getActivePlayer(userId))
       return;
@@ -67,6 +68,7 @@ class Game {
       return;
     const player = this.getActivePlayer(userId)!;
 
+    this.rollCount!++;
     this.dices.forEach(dice => {
       if (dice.selected) {
         dice.roll();
@@ -85,7 +87,7 @@ class Game {
   }
 
   selectDice(userId: string, selected: boolean[]) {
-    if (this.state.kind !== "lobby")
+    if (this.state.kind !== "playing")
       return;
     if (!this.getActivePlayer(userId))
       return;
@@ -119,7 +121,7 @@ class Game {
   }
 
   selectField(userId: string, fieldId: string) {
-    if (this.state.kind !== "lobby")
+    if (this.state.kind !== "playing")
       return;
     if (!this.getActivePlayer(userId))
       return;
@@ -210,6 +212,7 @@ class Room {
   }
 
   handleClientData(socket: AppSocket, clientData: ClientData) {
+    // console.log("reached... here", clientData)
     const {kind, data} = clientData;
     const userId = this.getValidUserId(socket);
     if (!userId)
@@ -225,7 +228,7 @@ class Room {
         this.game.startGame(userId);
         break;
       case "roll dices":
-        this.game.rollDice(userId);
+        this.game.rollDices(userId);
         break;
       case "select dices":
         const {selected} = data;
