@@ -27,7 +27,7 @@ export type FieldData = {
   isPreview: boolean;
 };
 
-export type FieldIO = Record<string, FieldData>;
+export type FieldIO = Record<string, FieldData | undefined>;
 
 export type PlayerIO = {
   userId: string;

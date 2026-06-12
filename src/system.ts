@@ -1,5 +1,5 @@
 import { AppSocket, io } from "./server";
-import { ClientData, GameIO, isFieldId, StateIO } from "./shared/socket-types";
+import { ClientData, FIELD_ID, FieldData, FieldIO as FieldsIO, GameIO, isFieldId, StateIO } from "./shared/socket-types";
 import { random } from "./utils";
 import { Dice, Player } from "./models";
 
@@ -74,15 +74,11 @@ class Game {
         dice.roll();
       }
     });
-    Object.keys(player.fields).forEach(fieldId => {
-      const fieldData = player.fields[fieldId];
-      if (fieldData.value === undefined) {
-        player.fields[fieldId] = {
-          value: this.getValue(fieldId),
-          isPreview: true
-        };
-      }
-    });
+    this.removeFieldPreview(player.fields);
+    this.setFieldPreviews(player.fields);
+    // if (this.rollCount! >= 3) {
+    //   this.dices.forEach(dice => dice.selected = true);
+    // }
     // console.log("should have send", player.fields)
     this.sendAll();
   }
@@ -92,33 +88,15 @@ class Game {
       return;
     if (!this.getActivePlayer(userId))
       return;
-    if (this.rollCount! === 0 || this.rollCount! >= 3)
+    if (this.rollCount! === 0)
       return;
+    // if (this.rollCount! === 0 || this.rollCount! >= 3)
+    //   return;
     if (selected.length !== 5)
       return;
   
     selected.forEach((selected_, i) => this.dices[i].selected = selected_);
     this.sendAll();
-  }
-
-  getValue(fieldId: string): number {
-    const counts = Array.from({length: 6}, () => 0);
-    this.dices.forEach(dice => counts[dice.num]++);
-    switch (fieldId) {
-      case "ones":
-        return counts[0] * 1;
-      case "twos":
-        return counts[1] * 2;
-      case "threes":
-        return counts[2] * 3;
-      case "fours":
-        return counts[3] * 4;
-      case "fives":
-        return counts[4] * 5;
-      case "sixes":
-        return counts[5] * 6;
-    }
-    throw "impossible";
   }
 
   selectField(userId: string, fieldId: string) {
@@ -131,24 +109,56 @@ class Game {
     if (!isFieldId(fieldId))
       return;
     const player = this.getActivePlayer(userId)!;
-    if (player.getFieldValue(fieldId) !== undefined)
+    const field = player.fields[fieldId];
+    if (field?.value !== undefined && !field?.isPreview)
       return;
-    
     player.fields[fieldId] = {
-      value: this.getValue(fieldId),
+      value: field?.value,
       isPreview: false
     };
-    Object.keys(player.fields).forEach(fieldId => {
-      const fieldData = player.fields[fieldId];
-      if (fieldData.isPreview) {
-        player.fields[fieldId] = {
-          value: undefined,
-          isPreview: false
-        };
-      }
-    })
+    this.removeFieldPreview(player.fields);
     this.dices.forEach(dice => dice.selected = true);
     this.sendAll();
+  }
+
+  
+  setFieldPreviews(fields: FieldsIO) {
+    const counts = Array.from({length: 6}, () => 0);
+    this.dices.forEach(dice => counts[dice.num-1]++);
+    for (const fieldId of Object.keys(fields)) {
+      let value = 0;
+      if (fields[fieldId]?.value === undefined) {
+        switch (fieldId) {
+          case "ones":
+            value = counts[0] * 1;
+            break;
+          case "twos":
+            value = counts[1] * 2;
+            break;
+          case "threes":
+            value = counts[2] * 3;
+            break;
+          case "fours":
+            value = counts[3] * 4;
+            break;
+          case "fives":
+            value = counts[4] * 5;
+            break;
+          case "sixes":
+            value = counts[5] * 6;
+            break;
+        }
+      }
+      fields[fieldId] = {value, isPreview: true};
+    }
+  }
+
+  removeFieldPreview(fields: FieldsIO) {
+    Object.keys(fields).forEach(fieldId => {
+      if (fields[fieldId]?.isPreview === true) {
+        fields[fieldId] = {value: undefined, isPreview: false};
+      }
+    });
   }
 
   sendAll(socket?: AppSocket) {
