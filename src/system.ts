@@ -86,7 +86,7 @@ class Game {
     this.sendAll();
   }
 
-  selectDice(userId: string, selected: boolean[]) {
+  selectDices(userId: string, selected: boolean[]) {
     if (this.state.kind !== "playing")
       return;
     if (!this.getActivePlayer(userId))
@@ -232,7 +232,7 @@ class Room {
         break;
       case "select dices":
         const {selected} = data;
-        this.game.selectDice(userId, selected);
+        this.game.selectDices(userId, selected);
         break;
     }
   }
