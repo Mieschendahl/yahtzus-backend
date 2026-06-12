@@ -53,7 +53,7 @@ class Game {
     this.players = this.players.map(player => new Player(player.userId));
     this.players = random.shuffle(this.players);
     this.dices = Dice.createDice();
-    this.activePlayerId = 1;
+    this.activePlayerId = 0;
     this.rollCount = 0;
     this.sendAll();
   }
@@ -225,10 +225,11 @@ class Room {
         this.game.startGame(userId);
         break;
       case "roll dices":
-        this.game.startGame(userId);
+        this.game.rollDice(userId);
         break;
       case "select dices":
-        this.game.startGame(userId);
+        const {selected} = data;
+        this.game.selectDice(userId, selected);
         break;
     }
   }

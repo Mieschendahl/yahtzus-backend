@@ -76,13 +76,13 @@ export type ClientData = (
   }
   | {
     kind: "select dices";
-    data?: {
+    data: {
       selected: boolean[]
     }
   }
   | {
     kind: "select field";
-    data?: {
+    data: {
       fieldname: string
     }
   }

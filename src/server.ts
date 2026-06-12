@@ -37,14 +37,14 @@ export type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
 io.on("connection", (socket: AppSocket) => {
   socket.on("disconnect", () => {
-    console.log("left")
+    // console.log("left")
     system.handleClientData(socket, {
       kind: "leave room"
     });
   });
 
   socket.on("send", (data: ClientData) => {
-    console.log("recieved", data)
+    // console.log("recieved", data)
     system.handleClientData(socket, data);
   });
 });
