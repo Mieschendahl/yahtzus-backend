@@ -1,7 +1,74 @@
 import { AppSocket, io } from "./server";
-import { ClientData, FIELD_ID, FieldData, FieldIO as FieldsIO, GameIO, isFieldId, StateIO } from "./shared/socket-types";
+import { ClientData, FIELD_ID_DATA, FieldData, GameIO, getFieldIndex, StateIO } from "./shared/socket-types";
 import { random } from "./utils";
-import { Dice, Player } from "./models";
+import { sum } from "./utils";
+import { DiceIO, PlayerIO } from "./shared/socket-types";
+
+export class Player {
+  constructor(
+    public userId: string,
+    public fields: FieldData[] = FIELD_ID_DATA.map(({ fieldId, isPrimitive }, index) => {
+      return {
+        fieldId,
+        index,
+        isPrimitive,
+        value: (() => {
+          switch (fieldId) {
+            case "User ID":
+              return userId;
+            default:
+              return undefined;
+          }
+        })()
+      };
+    })
+  ) { }
+
+  setTotalValue() {
+    this.fields[getFieldIndex("Total")].value = sum(
+      this.fields
+        .filter(({ isPrimitive }) => isPrimitive)
+        .map(({ value }) => Number(value ?? 0))
+    ).toString();
+  }
+
+  toIO(): PlayerIO {
+    return {
+      userId: this.userId,
+      fields: this.fields
+    };
+  }
+
+  static fromIO({ userId, fields: column }: PlayerIO): Player {
+    return new Player(userId, column);
+  }
+}
+
+export class Dice {
+  constructor(
+    public num: number = 1,
+    public selected: boolean = true
+  ) { }
+
+  roll() {
+    this.num = random.integer(1, 6)
+  }
+
+  toIO(): DiceIO {
+    return {
+      num: this.num,
+      selected: this.selected
+    };
+  }
+
+  static fromIO({ num, selected }: DiceIO): Dice {
+    return new Dice(num, selected);
+  }
+
+  static createDice(): Dice[] {
+    return Array.from({ length: 5 }, () => new Dice());
+  }
+}
 
 class Game {
   constructor(
@@ -10,7 +77,7 @@ class Game {
     public activePlayerId?: number,
     public rollCount?: number,
     public state: StateIO = { kind: "lobby" }
-  ) {}
+  ) { }
 
   getPlayer(userId: string): Player | undefined {
     return this.players.find(player => player.userId === userId);
@@ -49,8 +116,9 @@ class Game {
     if (!this.getPlayer(userId))
       return;
 
-    this.state = { kind: "playing"};
+    this.state = { kind: "playing" };
     this.players = this.players.map(player => new Player(player.userId));
+    this.players.forEach(player => player.setTotalValue());
     this.players = random.shuffle(this.players);
     this.dices = Dice.createDice();
     this.activePlayerId = 0;
@@ -74,8 +142,9 @@ class Game {
         dice.roll();
       }
     });
-    this.removeFieldPreview(player.fields);
+    player.fields.forEach(field => field.preview = undefined);
     this.setFieldPreviews(player.fields);
+    console.log(player.fields)
     // if (this.rollCount! >= 3) {
     //   this.dices.forEach(dice => dice.selected = true);
     // }
@@ -94,7 +163,7 @@ class Game {
     //   return;
     if (selected.length !== 5)
       return;
-  
+
     selected.forEach((selected_, i) => this.dices[i].selected = selected_);
     this.sendAll();
   }
@@ -106,58 +175,49 @@ class Game {
       return;
     if (this.rollCount! === 0)
       return;
-    if (!isFieldId(fieldId))
+    const fieldIndex = getFieldIndex(fieldId);
+    if (fieldIndex < 0)
       return;
     const player = this.getActivePlayer(userId)!;
-    const field = player.fields[fieldId];
-    if (field?.value !== undefined && !field?.isPreview)
+    const field = player.fields[fieldIndex];
+    if (field?.preview === undefined)
       return;
-    player.fields[fieldId] = {
-      value: field?.value,
-      isPreview: false
-    };
-    this.removeFieldPreview(player.fields);
+    field.value = field.preview;
+    player.setTotalValue();
+    player.fields.forEach(field => field.preview = undefined);
     this.dices.forEach(dice => dice.selected = true);
     this.sendAll();
   }
 
-  
-  setFieldPreviews(fields: FieldsIO) {
-    const counts = Array.from({length: 6}, () => 0);
-    this.dices.forEach(dice => counts[dice.num-1]++);
-    for (const fieldId of Object.keys(fields)) {
-      let value = 0;
-      if (fields[fieldId]?.value === undefined) {
-        switch (fieldId) {
-          case "ones":
-            value = counts[0] * 1;
-            break;
-          case "twos":
-            value = counts[1] * 2;
-            break;
-          case "threes":
-            value = counts[2] * 3;
-            break;
-          case "fours":
-            value = counts[3] * 4;
-            break;
-          case "fives":
-            value = counts[4] * 5;
-            break;
-          case "sixes":
-            value = counts[5] * 6;
-            break;
-        }
-      }
-      fields[fieldId] = {value, isPreview: true};
-    }
-  }
 
-  removeFieldPreview(fields: FieldsIO) {
-    Object.keys(fields).forEach(fieldId => {
-      if (fields[fieldId]?.isPreview === true) {
-        fields[fieldId] = {value: undefined, isPreview: false};
+  setFieldPreviews(fields: FieldData[]) {
+    const counts = Array.from({ length: 6 }, () => 0);
+    this.dices.forEach(dice => counts[dice.num - 1]++);
+    fields.forEach(field => {
+      if (field.value !== undefined)
+        return;
+      let preview = 0;
+      switch (field.fieldId) {
+        case "Ones":
+          preview = counts[0] * 1;
+          break;
+        case "Twos":
+          preview = counts[1] * 2;
+          break;
+        case "Threes":
+          preview = counts[2] * 3;
+          break;
+        case "Fours":
+          preview = counts[3] * 4;
+          break;
+        case "Fives":
+          preview = counts[4] * 5;
+          break;
+        case "Sixes":
+          preview = counts[5] * 6;
+          break;
       }
+      field.preview = preview.toString();
     });
   }
 
@@ -203,7 +263,7 @@ class Room {
     public socketMap: Map<AppSocket, RoomSocketData> = new Map(),
     public userIdMap: Map<string, RoomUserIdData> = new Map(),
     public game: Game = new Game()
-  ) {}
+  ) { }
 
   getValidUserId(socket: AppSocket): string | undefined {
     const userId = this.socketMap.get(socket)?.userId;
@@ -224,7 +284,7 @@ class Room {
 
   handleClientData(socket: AppSocket, clientData: ClientData) {
     // console.log("reached... here", clientData)
-    const {kind, data} = clientData;
+    const { kind, data } = clientData;
     const userId = this.getValidUserId(socket);
     if (!userId)
       return;
@@ -242,7 +302,7 @@ class Room {
         this.game.rollDices(userId);
         break;
       case "select dices":
-        const {selected} = data;
+        const { selected } = data;
         this.game.selectDices(userId, selected);
         break;
     }
@@ -252,9 +312,9 @@ class Room {
     userId = userId ?? "";
     userId = userId.trim()
 
-    this.socketMap.set(socket, {userId});
+    this.socketMap.set(socket, { userId });
     if (userId && !this.userIdMap.get(userId)?.socket) {
-      this.userIdMap.set(userId, {socket});
+      this.userIdMap.set(userId, { socket });
     }
 
     socket.join("room");
@@ -283,7 +343,7 @@ class System {
   ) { }
 
   handleClientData(socket: AppSocket, clientData: ClientData) {
-    const {kind, data} = clientData;
+    const { kind, data } = clientData;
     switch (kind) {
       case "join room":
         const { userId } = data;

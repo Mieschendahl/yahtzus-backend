@@ -1,14 +1,64 @@
-export const FIELD_ID = [
-  "ones",
-  "twos",
-  "threes",
-  "fours",
-  "fives",
-  "sixes"
+export const FIELD_ID_DATA = [
+  {
+    fieldId: "User ID",
+    isPrimitive: false
+  },
+  {
+    fieldId: "Ones",
+    isPrimitive: true,
+  },
+  {
+    fieldId: "Twos",
+    isPrimitive: true,
+  },
+  {
+    fieldId: "Threes",
+    isPrimitive: true
+  },
+  {
+    fieldId: "Fours",
+    isPrimitive: true
+  },
+  {
+    fieldId: "Fives",
+    isPrimitive: true
+  },
+  {
+    fieldId: "Sixes",
+    isPrimitive: true
+  },
+  {
+    fieldId: "Bonus",
+    isPrimitive: false
+  },
+  {
+    fieldId: "Total",
+    isPrimitive: false
+  }
 ];
 
-export function isFieldId(value: string): boolean {
-  return FIELD_ID.includes(value);
+export const FIELD_IDS = FIELD_ID_DATA.map(({fieldId}) => fieldId);
+
+export function getFieldIndex(fieldId: string): number {
+  return FIELD_IDS.findIndex(fieldId_ => fieldId === fieldId_);
+}
+
+export type FieldData = {
+  fieldId: string;
+  index: number;
+  isPrimitive: boolean;
+  value?: string;
+  preview?: string;
+};
+
+export type PlayerIO = {
+  userId: string;
+  fields: FieldData[];
+};
+
+export type DiceIO = {
+  num: number;
+  selected: boolean;
 }
 
 export type StateIO = (
@@ -21,23 +71,6 @@ export type StateIO = (
     data?: undefined
   }
 );
-
-export type FieldData = {
-  value?: number;
-  isPreview: boolean;
-};
-
-export type FieldIO = Record<string, FieldData | undefined>;
-
-export type PlayerIO = {
-  userId: string;
-  fields: FieldIO;
-};
-
-export type DiceIO = {
-  num: number;
-  selected: boolean;
-}
 
 export type GameIO = {
   players: PlayerIO[]
