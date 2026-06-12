@@ -78,11 +78,12 @@ class Game {
       const fieldData = player.fields[fieldId];
       if (fieldData.value === undefined) {
         player.fields[fieldId] = {
-          value: player.getFieldValue(fieldId),
+          value: this.getValue(fieldId),
           isPreview: true
         };
       }
-    })
+    });
+    // console.log("should have send", player.fields)
     this.sendAll();
   }
 
@@ -91,7 +92,7 @@ class Game {
       return;
     if (!this.getActivePlayer(userId))
       return;
-    if (this.rollCount! >= 3)
+    if (this.rollCount! === 0 || this.rollCount! >= 3)
       return;
     if (selected.length !== 5)
       return;
@@ -105,17 +106,17 @@ class Game {
     this.dices.forEach(dice => counts[dice.num]++);
     switch (fieldId) {
       case "ones":
-        return counts[1] * 1;
+        return counts[0] * 1;
       case "twos":
-        return counts[2] * 2;
+        return counts[1] * 2;
       case "threes":
-        return counts[3] * 3;
+        return counts[2] * 3;
       case "fours":
-        return counts[4] * 4;
+        return counts[3] * 4;
       case "fives":
-        return counts[5] * 5;
+        return counts[4] * 5;
       case "sixes":
-        return counts[6] * 6;
+        return counts[5] * 6;
     }
     throw "impossible";
   }

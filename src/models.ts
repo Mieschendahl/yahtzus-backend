@@ -15,7 +15,7 @@ export class Player {
   }
 
   getTotalValue(): number {
-    return sum(Object.keys(this.fields).map(key => this.fields[key]?.value ?? 0));
+    return sum(Object.keys(this.fields).map(key => this.fields[key].isPreview ? 0 : (this.fields[key]?.value ?? 0)));
   }
 
   getFieldValue(fieldId: string): number | undefined {
