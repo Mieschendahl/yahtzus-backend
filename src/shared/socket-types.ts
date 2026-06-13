@@ -114,7 +114,6 @@ export type GameIO = {
   activePlayerId?: number;
   rollCount?: number;
   state: StateIO;
-  effects: EffectData[];
 };
 
 export type ClientData = (

@@ -74,7 +74,8 @@ class Game {
   setEffects() {
     this.fieldIdToEffectId = new Map();
     FIELD_IDS.forEach(fieldId => {
-      this.fieldIdToEffectId.set(fieldId, random.pick([undefined, random.pick(EFFECT_IDS)]));
+      const field = FIELD_DATA[getFieldIndex(fieldId)];
+      this.fieldIdToEffectId.set(fieldId, field.isPrimitive ? random.pick([undefined, random.pick(EFFECT_IDS)]) : undefined);
     });
   }
 
@@ -215,8 +216,10 @@ class Game {
     const field = player.fields[fieldIndex];
     if (!field.isPreview)
       return;
+    if (!field.isPrimitive)
+      return;
     field.isPreview = false;
-    if (field.effect.effectId !== undefined) {
+    if (field.effect.effectId !== undefined && Number(field.value) > 0) {
       field.effect.status = "unlocked";
     }
     player.setTotalValue();
@@ -336,27 +339,12 @@ class Game {
   }
 
   toIO(): GameIO {
-    let effects: EffectData[];
-    if (this.state.kind === "lobby") {
-      effects = FIELD_IDS.map(_ => {
-        return {
-          effectId: undefined,
-          status: "locked"
-        };
-      });
-    } else if (this.state.kind === "playing") {
-      const player = this.players[this.activePlayerId!];
-      effects = player.fields.map(field => field.effect);
-    } else {
-      throw "Impossible";
-    }
     return {
       players: this.players.map(player => player.toIO()),
       dices: this.dices.map(dice => dice.toIO()),
       activePlayerId: this.activePlayerId,
       rollCount: this.rollCount,
-      state: this.state,
-      effects
+      state: this.state
     };
   }
 }
