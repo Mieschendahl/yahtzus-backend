@@ -20,7 +20,7 @@ export const EFFECT_DATA = [
   //   effectId: "Roll Low",
   //   type: "roll effect"
   // }
-];
+],
 
 export const EFFECT_IDS = EFFECT_DATA.map(({effectId}) => effectId);
 
@@ -65,7 +65,7 @@ export const FIELD_DATA = [
     fieldId: "Total",
     isPrimitive: false
   }
-];
+],
 
 export const FIELD_IDS = FIELD_DATA.map(({fieldId}) => fieldId);
 
@@ -79,23 +79,23 @@ export type EffectData = {
 };
 
 export type FieldData = {
-  fieldId: string;
-  index: number;
-  isPrimitive: boolean;
-  value?: string;
-  isPreview: boolean;
-  effect: EffectData;
+  fieldId: string,
+  index: number,
+  isPrimitive: boolean,
+  value?: string,
+  isPreview: boolean,
+  effect: EffectData,
 };
 
 export type PlayerIO = {
-  userId: string;
-  fields: FieldData[];
+  userId: string,
+  fields: FieldData[],
 };
 
 export type DiceIO = {
-  num: number;
-  selected: boolean;
-}
+  num: number,
+  selected: boolean,
+};
 
 export type StateIO = (
   | {
@@ -110,53 +110,53 @@ export type StateIO = (
 
 export type GameIO = {
   players: PlayerIO[]
-  dices: DiceIO[];
-  activePlayerId?: number;
-  rollCount?: number;
-  state: StateIO;
+  dices: DiceIO[],
+  activePlayerId?: number,
+  rollCount?: number,
+  state: StateIO,
 };
 
 export type ClientData = (
   | {
-    kind: "join room";
+    kind: "join room",
     data: {
       userId?: string
     }
   }
   | {
-    kind: "leave room";
-    data?: undefined;
+    kind: "leave room",
+    data?: undefined,
   }
   | {
-    kind: "join players";
+    kind: "join players",
     data?: undefined
   }
   | {
-    kind: "leave players";
-    data?: undefined;
+    kind: "leave players",
+    data?: undefined,
   }
   | {
-    kind: "start game";
-    data?: undefined;
+    kind: "start game",
+    data?: undefined,
   }
   | {
-    kind: "roll dices";
-    data?: undefined;
+    kind: "roll dices",
+    data?: undefined,
   }
   | {
-    kind: "select dices";
+    kind: "select dices",
     data: {
       selected: boolean[]
     }
   }
   | {
-    kind: "select field";
+    kind: "select field",
     data: {
       fieldId: string
     }
   }
   | {
-    kind: "select effect";
+    kind: "select effect",
     data: {
       fieldId: string
     }
@@ -169,7 +169,7 @@ export type ClientToServerEvents = {
 
 export type ServerData = (
   | {
-    kind: "set game";
+    kind: "set game",
     data: {
       game: GameIO
     }
@@ -177,5 +177,5 @@ export type ServerData = (
 );
 
 export type ServerToClientEvents = {
-  send: (data: ServerData) => void;
+  send: (data: ServerData) => void,
 };
