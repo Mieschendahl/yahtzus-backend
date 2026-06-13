@@ -1,5 +1,5 @@
 import { AppSocket, io } from "./server";
-import { ClientData, FIELD_ID_DATA, FieldData, GameIO, getFieldIndex, StateIO } from "./shared/socket-types";
+import { ClientData, EFFECT_DATA, EFFECT_IDS, FIELD_DATA, FIELD_IDS, FieldData, GameIO, getEffectIndex, getFieldIndex, StateIO } from "./shared/socket-types";
 import { random } from "./utils";
 import { sum } from "./utils";
 import { DiceIO, PlayerIO } from "./shared/socket-types";
@@ -7,21 +7,7 @@ import { DiceIO, PlayerIO } from "./shared/socket-types";
 export class Player {
   constructor(
     public userId: string,
-    public fields: FieldData[] = FIELD_ID_DATA.map(({ fieldId, isPrimitive }, index) => {
-      return {
-        fieldId,
-        index,
-        isPrimitive,
-        value: (() => {
-          switch (fieldId) {
-            case "User ID":
-              return userId;
-            default:
-              return undefined;
-          }
-        })()
-      };
-    })
+    public fields: FieldData[]
   ) { }
 
   setTotalValue() {
@@ -76,8 +62,21 @@ class Game {
     public dices: Dice[] = Dice.createDice(),
     public activePlayerId?: number,
     public rollCount?: number,
-    public state: StateIO = { kind: "lobby" }
-  ) { }
+    public state: StateIO = { kind: "lobby" },
+    public fieldIdToEffectId: Map<string, string | undefined> = new Map(),
+    public activeTurnEffectIds: Set<string> = new Set(),
+    public activeRollEffectIds: Set<string> = new Set(),
+    public multiplier: number = 1
+  ) {
+    this.setEffects();
+  }
+
+  setEffects() {
+    this.fieldIdToEffectId = new Map();
+    FIELD_IDS.forEach(fieldId => {
+      this.fieldIdToEffectId.set(fieldId, random.pick([undefined, random.pick(EFFECT_IDS)]));
+    });
+  }
 
   getPlayer(userId: string): Player | undefined {
     return this.players.find(player => player.userId === userId);
@@ -92,17 +91,47 @@ class Game {
     return player;
   }
 
+  makePlayer(userId: string): Player {
+    const fields: FieldData[] = FIELD_DATA.map(({ fieldId, isPrimitive }, index) => {
+      return {
+        fieldId,
+        index,
+        isPrimitive,
+        isPreview: false,
+        value: (() => {
+          switch (fieldId) {
+            case "User ID":
+              return userId;
+            default:
+              return undefined;
+          }
+        })(),
+        effect: {
+          effectId: this.fieldIdToEffectId.get(fieldId),
+          status: "locked"
+        }
+      };
+    });
+    return new Player(userId, fields);
+  }
+
   joinPlayers(userId: string) {
-    // console.log("join", userId, this.players)
+      // console.log("join", userId, this.players)
+      if(this.state.kind !== "lobby")
+    return;
     if (this.getPlayer(userId))
       return;
+    if (this.players.length > 10)
+      return;
 
-    this.players.push(new Player(userId));
+    this.players.push(this.makePlayer(userId));
     this.sendAll();
   }
 
   leavePlayers(userId: string) {
     // console.log("leave", userId, this.players)
+    if (this.state.kind !== "lobby")
+      return;
     if (!this.getPlayer(userId))
       return;
 
@@ -117,7 +146,8 @@ class Game {
       return;
 
     this.state = { kind: "playing" };
-    this.players = this.players.map(player => new Player(player.userId));
+    this.setEffects();
+    this.players = this.players.map(player => this.makePlayer(player.userId));
     this.players.forEach(player => player.setTotalValue());
     this.players = random.shuffle(this.players);
     this.dices = Dice.createDice();
@@ -142,13 +172,19 @@ class Game {
         dice.roll();
       }
     });
-    player.fields.forEach(field => field.preview = undefined);
+    player.fields.forEach(field => {
+      if (field.isPreview) {
+        field.value = undefined;
+        field.isPreview = false;
+      }
+    });
     this.setFieldPreviews(player.fields);
     // console.log(player.fields)
     // if (this.rollCount! >= 3) {
     //   this.dices.forEach(dice => dice.selected = true);
     // }
     // console.log("should have send", player.fields)
+    this.clearEffects();
     this.sendAll();
   }
 
@@ -161,10 +197,7 @@ class Game {
       return;
     // if (this.rollCount! === 0 || this.rollCount! >= 3)
     //   return;
-    if (selected.length !== 5)
-      return;
-
-    selected.forEach((selected_, i) => this.dices[i].selected = selected_);
+    this.dices.forEach((dice, i) => dice.selected = i < selected.length ? selected[i] : true);
     this.sendAll();
   }
 
@@ -180,20 +213,74 @@ class Game {
       return;
     const player = this.getActivePlayer(userId)!;
     const field = player.fields[fieldIndex];
-    if (field?.preview === undefined)
+    if (!field.isPreview)
       return;
-    field.value = field.preview;
+    field.isPreview = false;
+    if (field.effect.effectId !== undefined) {
+      field.effect.status = "unlocked";
+    }
     player.setTotalValue();
-    player.fields.forEach(field => field.preview = undefined);
+    player.fields.forEach(field => {
+      if (field.isPreview) {
+        field.value = undefined;
+        field.isPreview = false;
+      }
+    });
     this.dices.forEach(dice => {
       dice.num = 1;
       dice.selected = true;
     });
     this.rollCount = 0;
     this.activePlayerId = (this.activePlayerId! + 1) % this.players.length;
+    this.clearEffects(true);
     this.sendAll();
   }
 
+  clearEffects(turnEnd: boolean = false) {
+    this.activeRollEffectIds.forEach(effectId => {
+      if (effectId === "Double Value") {
+        this.multiplier = 1;
+      }
+    });
+    if (turnEnd) {
+      this.activeTurnEffectIds.forEach(effectId => {
+
+      });
+    }
+  }
+
+  selectEffect(userId: string, fieldId: string) {
+    if (this.state.kind !== "playing")
+      return;
+    if (!this.getActivePlayer(userId))
+      return;
+    if (this.rollCount! === 0)
+      return;
+    const fieldIndex = getFieldIndex(fieldId);
+    if (fieldIndex < 0)
+      return;
+    const player = this.getActivePlayer(userId)!;
+    const field = player.fields[fieldIndex];
+    const effect = field.effect;
+    if (effect.status !== "unlocked")
+      return;
+    if (effect.effectId === undefined || this.activeRollEffectIds.has(effect.effectId) || this.activeTurnEffectIds.has(effect.effectId))
+      return;
+    if (effect.effectId === "Double Value") {
+      this.activeTurnEffectIds.add(effect.effectId);
+      this.multiplier = 2;
+    }
+    effect.status = "in use";
+    player.fields.forEach(field => {
+      if (field.isPreview) {
+        field.value = undefined;
+        field.isPreview = false;
+      }
+    });
+    this.setFieldPreviews(player.fields);
+    player.setTotalValue();
+    this.sendAll();
+  }
 
   setFieldPreviews(fields: FieldData[]) {
     const counts = Array.from({ length: 6 }, () => 0);
@@ -222,7 +309,11 @@ class Game {
           preview = counts[5] * 6;
           break;
       }
-      field.preview = preview.toString();
+      if (this.activeTurnEffectIds.has("Double Value")) {
+        preview = preview * this.multiplier;
+      }
+      field.value = preview.toString();
+      field.isPreview = true;
     });
   }
 
@@ -311,8 +402,12 @@ class Room {
         this.game.selectDices(userId, selected);
         break;
       case "select field":
-        const { fieldId } = data;
+        const { fieldId: fieldId } = data;
         this.game.selectField(userId, fieldId);
+        break;
+      case "select effect":
+        const { fieldId: fieldId_ } = data;
+        this.game.selectEffect(userId, fieldId_);
         break;
     }
   }
