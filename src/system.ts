@@ -144,7 +144,7 @@ class Game {
     });
     player.fields.forEach(field => field.preview = undefined);
     this.setFieldPreviews(player.fields);
-    console.log(player.fields)
+    // console.log(player.fields)
     // if (this.rollCount! >= 3) {
     //   this.dices.forEach(dice => dice.selected = true);
     // }
@@ -185,7 +185,12 @@ class Game {
     field.value = field.preview;
     player.setTotalValue();
     player.fields.forEach(field => field.preview = undefined);
-    this.dices.forEach(dice => dice.selected = true);
+    this.dices.forEach(dice => {
+      dice.num = 1;
+      dice.selected = true;
+    });
+    this.rollCount = 0;
+    this.activePlayerId = (this.activePlayerId! + 1) % this.players.length;
     this.sendAll();
   }
 
@@ -304,6 +309,10 @@ class Room {
       case "select dices":
         const { selected } = data;
         this.game.selectDices(userId, selected);
+        break;
+      case "select field":
+        const { fieldId } = data;
+        this.game.selectField(userId, fieldId);
         break;
     }
   }

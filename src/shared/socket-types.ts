@@ -116,7 +116,7 @@ export type ClientData = (
   | {
     kind: "select field";
     data: {
-      fieldname: string
+      fieldId: string
     }
   }
 );

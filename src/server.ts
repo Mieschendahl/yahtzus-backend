@@ -44,7 +44,7 @@ io.on("connection", (socket: AppSocket) => {
   });
 
   socket.on("send", (data: ClientData) => {
-    // console.log("recieved", data)
+    console.log("recieved", data)
     system.handleClientData(socket, data);
   });
 });
