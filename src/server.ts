@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { Server, Socket } from "socket.io";
-import { ClientData, ClientToServerEvents, ServerToClientEvents } from "./shared/socket-types";
+import { ClientData, ClientDataCb, ClientToServerEvents, ServerToClientEvents } from "./shared/socket-types";
 import { system } from "./system";
 
 const stage = process.env.STAGE ?? "local";
@@ -38,14 +38,14 @@ export type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 io.on("connection", (socket: AppSocket) => {
   socket.on("disconnect", () => {
     // console.log("left")
-    system.handleClientData(socket, {
+    system.onClientData(socket, {
       kind: "leave room"
     });
   });
 
-  socket.on("send", (data: ClientData) => {
+  socket.on("send", (clientData: ClientData, clientDataCb: ClientDataCb) => {
     // console.log("recieved", data)
-    system.handleClientData(socket, data);
+    system.onClientData(socket, clientData, clientDataCb);
   });
 });
 
