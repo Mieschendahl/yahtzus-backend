@@ -73,16 +73,18 @@ export function getFieldIndex(fieldId: string): number {
   return FIELD_IDS.findIndex(fieldId_ => fieldId === fieldId_);
 }
 
+export type EffectData = {
+  effectId?: string,
+  status: "locked" | "unlocked" | "in use" | "used"
+};
+
 export type FieldData = {
   fieldId: string;
   index: number;
   isPrimitive: boolean;
   value?: string;
   isPreview: boolean;
-  effect: {
-    effectId?: string,
-    status: "locked" | "unlocked" | "in use" | "used"
-  };
+  effect: EffectData;
 };
 
 export type PlayerIO = {
@@ -112,6 +114,7 @@ export type GameIO = {
   activePlayerId?: number;
   rollCount?: number;
   state: StateIO;
+  effects: EffectData[];
 };
 
 export type ClientData = (

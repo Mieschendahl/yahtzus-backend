@@ -1,5 +1,5 @@
 import { AppSocket, io } from "./server";
-import { ClientData, EFFECT_DATA, EFFECT_IDS, FIELD_DATA, FIELD_IDS, FieldData, GameIO, getEffectIndex, getFieldIndex, StateIO } from "./shared/socket-types";
+import { ClientData, EFFECT_DATA, EFFECT_IDS, EffectData, FIELD_DATA, FIELD_IDS, FieldData, GameIO, getEffectIndex, getFieldIndex, StateIO } from "./shared/socket-types";
 import { random } from "./utils";
 import { sum } from "./utils";
 import { DiceIO, PlayerIO } from "./shared/socket-types";
@@ -336,12 +336,27 @@ class Game {
   }
 
   toIO(): GameIO {
+    let effects: EffectData[];
+    if (this.state.kind === "lobby") {
+      effects = FIELD_IDS.map(_ => {
+        return {
+          effectId: undefined,
+          status: "locked"
+        };
+      });
+    } else if (this.state.kind === "playing") {
+      const player = this.players[this.activePlayerId!];
+      effects = player.fields.map(field => field.effect);
+    } else {
+      throw "Impossible";
+    }
     return {
       players: this.players.map(player => player.toIO()),
       dices: this.dices.map(dice => dice.toIO()),
       activePlayerId: this.activePlayerId,
       rollCount: this.rollCount,
-      state: this.state
+      state: this.state,
+      effects
     };
   }
 }
