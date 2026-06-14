@@ -109,16 +109,20 @@ export type PlayerType = {
 
 export type StateType = "lobby" | "playing";
 
+export type GameType = {
+  state: StateType,
+  userIds: string[],
+  activePlayerIdx?: number,
+  rollCount: number,
+  rollMax: number,
+  multiplier: number
+};
+
 export type ServerData = (
   | {
-    kind: "set state",
+    kind: "set game",
     data: {
-      state: StateType,
-      userIds: string[],
-      activePlayerIdx?: number,
-      rollCount: number,
-      rollMax: number,
-      multiplier: number
+      game: GameType
     }
   }
   | {
@@ -128,7 +132,7 @@ export type ServerData = (
     }
   }
   | {
-    kind: "set fields",
+    kind: "set players",
     data: {
       players: PlayerType[]
     }

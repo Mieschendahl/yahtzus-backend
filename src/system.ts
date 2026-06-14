@@ -111,16 +111,18 @@ class Game {
     }
   }
 
-  private sendState(socket?: AppSocket) {
+  private sendGame(socket?: AppSocket) {
     const data: ServerData = {
-      kind: "set state",
+      kind: "set game",
       data: {
-        state: this.state,
-        userIds: this.players.map(player => player.userId),
-        activePlayerIdx: this.activePlayerIdx,
-        rollCount: this.rollCount,
-        rollMax: this.rollMax,
-        multiplier: this.multiplier
+        game: {
+          state: this.state,
+          userIds: this.players.map(player => player.userId),
+          activePlayerIdx: this.activePlayerIdx,
+          rollCount: this.rollCount,
+          rollMax: this.rollMax,
+          multiplier: this.multiplier
+        }
       }
     };
     this.sendData(data, socket);
@@ -136,9 +138,9 @@ class Game {
     this.sendData(data, socket);
   }
 
-  private sendFields(socket?: AppSocket) {
+  private sendPlayers(socket?: AppSocket) {
     const data: ServerData = {
-      kind: "set fields",
+      kind: "set players",
       data: {
         players: this.players.map(player => {
           return {
@@ -152,9 +154,9 @@ class Game {
   }
 
   sendAll(socket?: AppSocket) {
-    this.sendState(socket);
+    this.sendGame(socket);
     this.sendDice(socket);
-    this.sendFields(socket);
+    this.sendPlayers(socket);
   }
 
   private sendField(userId: string, field: FieldType, socket?: AppSocket) {
@@ -292,7 +294,7 @@ class Game {
     if (field.effectId === "double") {
       this.activeEffectIds.turnBased.add(field.effectId);
       this.multiplier = 2;
-      this.sendState();
+      this.sendGame();
     } else if (field.effectId === "dice") {
       this.activeEffectIds.turnBased.add(field.effectId);
       const die = new Dice();
