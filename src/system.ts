@@ -1,20 +1,20 @@
 import { AppSocket, io } from "./server";
-import { ClientData, ClientDataCb, EFFECT_IDS, EffectId, FIELD_DATA, FIELD_IDS, FieldId, FieldType, getFieldIndex, getFieldIdx, PlayerType, ServerData, StateType, getField } from "./shared/socket-types";
+import { ClientData, EFFECT_IDS, EffectId, FIELD_IDS, FieldId, FieldType, PlayerType, ServerData, getField, DiceType, StateType } from "./shared/socket-types";
 import { random } from "./utils";
 
 export class Dice {
   constructor(
-    public num: number = 1,
+    public value: number = 1,
     public selected: boolean = true
   ) { }
 
   roll() {
-    this.num = random.integer(1, 6)
+    this.value = random.integer(1, 6)
   }
 
-  toTyped(): DiceIO {
+  toTyped(): DiceType {
     return {
-      num: this.num,
+      value: this.value,
       selected: this.selected
     };
   }
@@ -42,8 +42,8 @@ class Game {
   private players: Player[] = [];
   private dice: Dice[] = Dice.createDice();
   private activePlayerIdx?: number;
-  private rollCount?: number = 0;
-  private rollMax?: number = 3;
+  private rollCount: number = 0;
+  private rollMax: number = 3;
   private multiplier: number = 1;
   private state: StateType = "lobby";
   private fieldIdToEffectId: Map<FieldId, EffectId | undefined> = new Map();
@@ -86,7 +86,7 @@ class Game {
   }
 
   joinPlayers(userId: string) {
-    if (this.state.kind !== "lobby")
+    if (this.state !== "lobby")
       return;
     if (this.getPlayer(userId))
       return;
@@ -95,7 +95,7 @@ class Game {
   }
 
   leavePlayers(userId: string) {
-    if (this.state.kind !== "lobby")
+    if (this.state !== "lobby")
       return;
     if (!this.getPlayer(userId))
       return;
@@ -119,7 +119,8 @@ class Game {
         userIds: this.players.map(player => player.userId),
         activePlayerIdx: this.activePlayerIdx,
         rollCount: this.rollCount,
-        rollMax: this.rollMax
+        rollMax: this.rollMax,
+        multiplier: this.multiplier
       }
     };
     this.sendData(data, socket);
@@ -181,7 +182,7 @@ class Game {
 
   private getFieldValues(): FieldType[] {
     const counts = Array.from({ length: 6 }, () => 0);
-    this.dice.forEach(dice => counts[dice.num - 1]++);
+    this.dice.forEach(dice => counts[dice.value - 1]++);
     return FIELD_IDS.map(fieldId => {
       let fieldValue = 0;
       if (fieldId === "ones") {
@@ -206,7 +207,7 @@ class Game {
   }
 
   startGame(userId: string) {
-    if (this.state.kind !== "lobby")
+    if (this.state !== "lobby")
       return;
     if (!this.getPlayer(userId))
       return;
@@ -234,7 +235,7 @@ class Game {
       }
     });
     this.resetEffects();
-    this.sendAll();
+    this.sendDice();
   }
 
   selectDices(userId: string, selected: boolean[]) {
@@ -243,7 +244,7 @@ class Game {
     if (this.rollCount! === 0 || this.rollCount! >= 3)
       return;
     this.dice.forEach((dice, i) => dice.selected = i < selected.length ? selected[i] : true);
-    this.sendAll();
+    this.sendDice();
   }
 
   selectField(userId: string, fieldId: FieldId) {
@@ -262,7 +263,10 @@ class Game {
       field.effectState = "unlocked";
     }
     this.resetEffects(true);
-    this.sendAll();
+    this.sendField(
+      userId,
+      field
+    );
   }
 
   selectEffect(userId: string, fieldId: FieldId) {
@@ -281,19 +285,24 @@ class Game {
     if (this.activeEffectIds.rollBased.has(field.effectId!) || this.activeEffectIds.turnBased.has(field.effectId!))
       return;
     field.effectState = "in use";
+    this.sendField(
+      userId,
+      field
+    );
     if (field.effectId === "double") {
       this.activeEffectIds.turnBased.add(field.effectId);
       this.multiplier = 2;
+      this.sendState();
     } else if (field.effectId === "dice") {
       this.activeEffectIds.turnBased.add(field.effectId);
       const die = new Dice();
       die.roll()
       this.dice.push(die);
+      this.sendDice();
     } else if (field.effectId === "roll") {
       this.activeEffectIds.turnBased.add(field.effectId);
       this.rollMax!++;
     }
-    this.sendAll();
   }
 }
 
@@ -312,7 +321,7 @@ class Room {
     return userId;
   }
 
-  onClientData(socket: AppSocket, clientData: ClientData, clientDataCb: ClientDataCb = () => { }) {
+  onClientData(socket: AppSocket, clientData: ClientData) {
     // console.log("reached... here", clientData);
     const { kind, data } = clientData;
     const userId = this.getUserId(socket);
@@ -362,14 +371,14 @@ class Room {
 class System {
   public room = new Room()
 
-  onClientData(socket: AppSocket, clientData: ClientData, clientDataCb: ClientDataCb = () => { }) {
+  onClientData(socket: AppSocket, clientData: ClientData) {
     const { kind, data } = clientData;
     if (kind === "join room") {
       this.room.joinRoom(socket, data.userId);
     } else if (kind === "leave room") {
       this.room.leaveRoom(socket);
     } else {
-      this.room.onClientData(socket, clientData, clientDataCb);
+      this.room.onClientData(socket, clientData);
     }
   }
 }

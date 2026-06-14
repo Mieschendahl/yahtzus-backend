@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { Server, Socket } from "socket.io";
-import { ClientData, ClientDataCb, ClientToServerEvents, ServerToClientEvents } from "./shared/socket-types";
+import { ClientData, ClientToServerEvents, ServerToClientEvents } from "./shared/socket-types";
 import { system } from "./system";
 
 const stage = process.env.STAGE ?? "local";
@@ -43,9 +43,9 @@ io.on("connection", (socket: AppSocket) => {
     });
   });
 
-  socket.on("send", (clientData: ClientData, clientDataCb: ClientDataCb) => {
+  socket.on("send", (clientData: ClientData) => {
     // console.log("recieved", data)
-    system.onClientData(socket, clientData, clientDataCb);
+    system.onClientData(socket, clientData);
   });
 });
 
