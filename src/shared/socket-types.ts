@@ -34,13 +34,13 @@ export type ClientData = (
   | {
     kind: "select field",
     data: {
-      fieldId: string
+      fieldId: FieldId
     }
   }
   | {
     kind: "select effect",
     data: {
-      fieldId: string
+      fieldId: FieldId
     }
   }
 );
@@ -60,42 +60,63 @@ export type ClientToServerEvents = {
   send: (data: ClientData) => void
 };
 
-export type FieldId = "ones" | "twos";
+export const FIELD_IDS = [
+  "ones",
+  "twos",
+  "threes"
+] as const;
 
-export type EffectId = "double";
+export type FieldId = (typeof FIELD_IDS)[number];
 
-export type EffectState = "locked" | "unlocked" | "using" | "used";
+export function getFieldIdx(fieldId: FieldId): number {
+  return FIELD_IDS.findIndex(fieldId_ => fieldId_ === fieldId);
+}
+
+export function getField(fieldId: FieldId, fields: FieldType[]): FieldType | undefined {
+  return fields[getFieldIdx(fieldId)];
+}
+
+export const EFFECT_IDS = [
+  "double",
+  "dice",
+  "roll"
+] as const;
+
+export type EffectId = (typeof EFFECT_IDS)[number];
+
+export function isEffectId(effectId: EffectId): boolean {
+  return EFFECT_IDS.some(effectId_ => effectId_ === effectId);
+}
+
+export type EffectState = "locked" | "unlocked" | "in use" | "used";
 
 export type DiceType = {
   value: number,
   selected: boolean,
 };
 
-export type StateType = (
-  | {
-    kind: "lobby",
-    data: {
-      playerIds: string[],
-      playerIdx?: number,
-      rollCount?: number,
-      maxRolls?: number
-    }
-  }
-  | {
-    kind: "playing"
-    data: {
-      playerIds: string[],
-      playerIdx: number,
-      rollCount: number,
-      maxRolls: number
-    }
-  }
-);
+export type FieldType = {
+  fieldId: FieldId,
+  fieldValue?: number,
+  effectId?: EffectId,
+  effectState?: EffectState
+};
+
+export type PlayerType = {
+  userId: string,
+  fields: FieldType[]
+};
 
 export type ServerData = (
   | {
     kind: "set state",
-    data: StateType
+    data: {
+      state: "lobby" | "playing",
+      userIds: string[],
+      activePlayerIdx?: number,
+      rollCount?: number,
+      rollMax?: number
+    }
   }
   | {
     kind: "set dice",
@@ -104,20 +125,16 @@ export type ServerData = (
     }
   }
   | {
-    kind: "set field",
+    kind: "set fields",
     data: {
-      playerId: string,
-      fieldId: FieldId,
-      value: number
+      players: PlayerType[]
     }
   }
   | {
-    kind:  "set effect",
+    kind: "set field",
     data: {
-      playerId: string,
-      fieldId: FieldId,
-      effectId: EffectId,
-      state: EffectState
+      userId: string,
+      field: FieldType
     }
   }
 );
