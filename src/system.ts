@@ -117,6 +117,11 @@ class Game {
   }
 
   startGame(userId: string) {
+    if (this.state.kind !== "lobby")
+      return;
+    if (!this.getPlayer(userId))
+      return;
+
     this.state = { kind: "playing" };
     this.setEffects();
     this.players = this.players.map(player => this.makePlayer(player.userId));
@@ -129,6 +134,11 @@ class Game {
   }
 
   rollDices(userId: string) {
+    // console.log("reached moi", this.state.kind !== "playing", !this.getActivePlayer(userId), this.rollCount! >= 3, this.activePlayerId, this.players)
+    if (this.state.kind !== "playing")
+      return;
+    if (!this.getActivePlayer(userId))
+      return;
     if (this.rollCount! >= 3)
       return;
     const player = this.getActivePlayer(userId)!;
@@ -156,11 +166,25 @@ class Game {
   }
 
   selectDices(userId: string, selected: boolean[]) {
+    if (this.state.kind !== "playing")
+      return;
+    if (!this.getActivePlayer(userId))
+      return;
+    if (this.rollCount! === 0)
+      return;
+    // if (this.rollCount! === 0 || this.rollCount! >= 3)
+    //   return;
     this.dices.forEach((dice, i) => dice.selected = i < selected.length ? selected[i] : true);
     this.sendAll();
   }
 
   selectField(userId: string, fieldId: string) {
+    if (this.state.kind !== "playing")
+      return;
+    if (!this.getActivePlayer(userId))
+      return;
+    if (this.rollCount! === 0)
+      return;
     const fieldIndex = getFieldIndex(fieldId);
     if (fieldIndex < 0)
       return;
@@ -205,6 +229,12 @@ class Game {
   }
 
   selectEffect(userId: string, fieldId: string) {
+    if (this.state.kind !== "playing")
+      return;
+    if (!this.getActivePlayer(userId))
+      return;
+    if (this.rollCount! === 0)
+      return;
     const fieldIndex = getFieldIndex(fieldId);
     if (fieldIndex < 0)
       return;
@@ -278,6 +308,11 @@ class Game {
   }
 
   joinPlayers(userId: string) {
+    // console.log("join", userId, this.players)
+    if (this.state.kind !== "lobby")
+      return;
+    if (this.getPlayer(userId))
+      return;
     if (this.players.length > 10)
       return;
 
@@ -286,6 +321,12 @@ class Game {
   }
 
   leavePlayers(userId: string) {
+    // console.log("leave", userId, this.players)
+    if (this.state.kind !== "lobby")
+      return;
+    if (!this.getPlayer(userId))
+      return;
+
     this.players = this.players.filter(player => player.userId !== userId);
     this.sendAll();
   }
@@ -324,64 +365,49 @@ class Room {
     return userId;
   }
 
-  onClientData(socket: AppSocket, clientData: ClientData) {
+  onClientData(socket: AppSocket, clientData: ClientData, clientDataCb: ClientDataCb = () => { }) {
     // console.log("reached... here", clientData);
     const { kind, data } = clientData;
     const userId = this.getUserId(socket);
-    if (userId) {
-      if (this.game.state.kind === "lobby") {
-        if (kind === "join players") {
-          this.game.joinPlayers(userId);
-        } else if (this.game.getPlayer(userId)) {
-          if (kind === "leave players") {
-            this.game.leavePlayers(userId);
-          } else if (kind === "start game") {
-            this.game.startGame(userId);
-          }
-        }
-      } else if (this.game.state.kind === "playing") {
-        if (this.game.getActivePlayer(userId)) {
-          if (kind === "roll dices") {
-            this.game.rollDices(userId);
-          } else if (this.game.rollCount! > 0) {
-            if (kind === "select dices") {
-              this.game.selectDices(userId, data.selected);
-            } else if (kind === "select field") {
-              this.game.selectField(userId, data.fieldId);
-            } else if (kind === "select effect") {
-              this.game.selectEffect(userId, data.fieldId);
-            }
-          }
-        }
-      }
+    if (!userId)
+      return;
+    if (kind === "join players") {
+      this.game.joinPlayers(userId);
+    } else if (kind === "leave players") {
+      this.game.leavePlayers(userId);
+    } else if (kind === "start game") {
+      this.game.startGame(userId);
+    } else if (kind === "roll dices") {
+      this.game.rollDices(userId);
+    } else if (kind === "select dices") {
+      this.game.selectDices(userId, data.selected);
+    } else if (kind === "select field") {
+      this.game.selectField(userId, data.fieldId);
+    } else if (kind === "select effect") {
+      this.game.selectEffect(userId, data.fieldId);
     }
   }
 
   joinRoom(socket: AppSocket, userId?: string) {
+    this.leaveRoom(socket);
     userId = userId ?? "";
     userId = userId.trim()
-
+    socket.join("room");
     this.socketMap.set(socket, { userId });
     if (userId && !this.userIdMap.get(userId)?.socket) {
       this.userIdMap.set(userId, { socket });
+      this.game.joinPlayers(userId);
     }
-
-    socket.join("room");
-    this.onClientData(socket, {
-      kind: "join players"
-    });
     this.game.sendAll(socket);
   }
 
   leaveRoom(socket: AppSocket) {
-    this.onClientData(socket, {
-      kind: "leave players"
-    });
     const userId = this.getUserId(socket);
-    this.socketMap.delete(socket);
     if (userId) {
+      this.game.leavePlayers(userId);
       this.userIdMap.delete(userId);
     }
+    this.socketMap.delete(socket);
     socket.leave("room");
   }
 }
@@ -389,15 +415,14 @@ class Room {
 class System {
   public room = new Room()
 
-  onClientData(socket: AppSocket, clientData: ClientData) {
+  onClientData(socket: AppSocket, clientData: ClientData, clientDataCb: ClientDataCb = () => { }) {
     const { kind, data } = clientData;
     if (kind === "join room") {
-      this.room.leaveRoom(socket);
       this.room.joinRoom(socket, data.userId);
     } else if (kind === "leave room") {
       this.room.leaveRoom(socket);
     } else {
-      this.room.onClientData(socket, clientData);
+      this.room.onClientData(socket, clientData, clientDataCb);
     }
   }
 }
