@@ -127,7 +127,7 @@ class Game {
       data: {
         game: {
           state: this.state,
-          activeUserId: this.getActivePlayer()?.userId,
+          activeUserId: this.activePlayerIdx !== undefined ? this.players[this.activePlayerIdx].userId : undefined,
           rollCount: this.rollCount,
           rollMax: this.rollMax,
           multiplier: this.multiplier
@@ -190,6 +190,10 @@ class Game {
     this.dice = Dice.createDice();
     this.activePlayerIdx = (this.activePlayerIdx! + 1) % this.players.length;
     this.activeEffectIds.turnBased.clear();
+  }
+
+  private isGameFinished(): boolean {
+    return this.players.slice(-1)[0].fields.every(({fieldValue}) => fieldValue !== undefined);
   }
 
   startGame(userId: string) {
@@ -255,6 +259,9 @@ class Game {
       userId,
       field
     );
+    if (this.isGameFinished()) {
+      this.state = "lobby";
+    }
     this.sendDynamicGame();
   }
 
