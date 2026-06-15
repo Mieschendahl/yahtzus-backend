@@ -255,6 +255,7 @@ class Game {
       userId,
       field
     );
+    this.sendDynamicGame();
   }
 
   selectEffect(userId: string, fieldId: FieldId) {
@@ -271,7 +272,7 @@ class Game {
     const effectId = getEffectId(fieldId, this.effectIds);
     if (this.activeEffectIds.rollBased.has(effectId!) || this.activeEffectIds.turnBased.has(effectId!))
       return;
-    field.effectState = "in use";
+    field.effectState = "used";
     this.sendField(
       userId,
       field

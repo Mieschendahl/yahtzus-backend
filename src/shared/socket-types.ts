@@ -129,7 +129,7 @@ export function getEffectId(fieldId: string, effectIds: EffectId[]): EffectId | 
   return effectIds[getFieldIdx(fieldId)];
 }
 
-export type EffectState = "locked" | "unlocked" | "in use" | "used";
+export type EffectState = "locked" | "unlocked" | "used";
 
 export type DiceType = {
   value: number,
