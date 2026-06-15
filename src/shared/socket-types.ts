@@ -76,6 +76,42 @@ export function getField(fieldId: string, fields: FieldType[]): FieldType | unde
   return fields[getFieldIdx(fieldId)];
 }
 
+export function getFieldValues(dice: DiceType[], multiplier: number): FieldType[] {
+  const counts = Array.from({ length: 6 }, () => 0);
+
+  dice.forEach(die => counts[die.value - 1]++);
+
+  return FIELD_IDS.map(fieldId => {
+    let fieldValue = 0;
+
+    if (fieldId === "ones") {
+      fieldValue = counts[0] * 1;
+    } else if (fieldId === "twos") {
+      fieldValue = counts[1] * 2;
+    } else if (fieldId === "threes") {
+      fieldValue = counts[2] * 3;
+    } else if (fieldId === "fours") {
+      fieldValue = counts[3] * 4;
+    } else if (fieldId === "fives") {
+      fieldValue = counts[4] * 5;
+    } else if (fieldId === "sixes") {
+      fieldValue = counts[5] * 6;
+    }
+
+    return {
+      fieldId,
+      fieldValue: fieldValue * multiplier,
+    };
+  });
+}
+
+export function getTotalValue(fields: FieldType[]): number {
+  return fields.reduce(
+    (a, b) => a + (b.fieldValue ?? 0),
+    0
+  );
+}
+
 export const EFFECT_IDS = [
   undefined,
   "double",

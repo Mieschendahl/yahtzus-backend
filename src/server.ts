@@ -44,7 +44,7 @@ io.on("connection", (socket: AppSocket) => {
   });
 
   socket.on("send", (clientData: ClientData) => {
-    console.log("reached... socket", clientData)
+    // console.log("reached... socket", clientData)
     system.onClientData(socket, clientData);
   });
 });

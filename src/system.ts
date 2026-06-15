@@ -1,5 +1,5 @@
 import { AppSocket, io } from "./server";
-import { ClientData, EFFECT_IDS, EffectId, FIELD_IDS, FieldId, FieldType, PlayerType, ServerData, getField, DiceType, StateType, getEffectId } from "./shared/socket-types";
+import { ClientData, EFFECT_IDS, EffectId, FIELD_IDS, FieldId, FieldType, PlayerType, ServerData, getField, DiceType, StateType, getEffectId, getFieldValues } from "./shared/socket-types";
 import { random } from "./utils";
 
 export class Dice {
@@ -192,32 +192,6 @@ class Game {
     this.activeEffectIds.turnBased.clear();
   }
 
-  private getFieldValues(): FieldType[] {
-    const counts = Array.from({ length: 6 }, () => 0);
-    this.dice.forEach(dice => counts[dice.value - 1]++);
-    return FIELD_IDS.map(fieldId => {
-      let fieldValue = 0;
-      if (fieldId === "ones") {
-        fieldValue = counts[0] * 1;
-      } else if (fieldId === "twos") {
-        fieldValue = counts[1] * 2;
-      } else if (fieldId === "threes") {
-        fieldValue = counts[2] * 3;
-      } else if (fieldId === "fours") {
-        fieldValue = counts[3] * 4;
-      } else if (fieldId === "fives") {
-        fieldValue = counts[4] * 5;
-      } else if (fieldId === "sixes") {
-        fieldValue = counts[5] * 6;
-      }
-      fieldValue = fieldValue * this.multiplier;
-      return {
-        fieldId,
-        fieldValue
-      };
-    });
-  }
-
   startGame(userId: string) {
     if (this.state !== "lobby")
       return;
@@ -271,7 +245,8 @@ class Game {
       return;
     if (field.fieldValue !== undefined)
       return;
-    field.fieldValue = getField(fieldId, this.getFieldValues())?.fieldValue!;
+    const fields_ = getFieldValues(this.dice.map(dice => dice.toTyped()), this.multiplier);
+    field.fieldValue = getField(fieldId, fields_)?.fieldValue!;
     if (field.effectState !== undefined && field.fieldValue > 0) {
       field.effectState = "unlocked";
     }
