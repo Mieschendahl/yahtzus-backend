@@ -1,5 +1,5 @@
 import { AppSocket, io } from "./server";
-import { ClientData, EFFECT_IDS, EffectId, FIELD_IDS, FieldId, FieldType, PlayerType, ServerData, getField, DiceType, StateType } from "./shared/socket-types";
+import { ClientData, EFFECT_IDS, EffectId, FIELD_IDS, FieldId, FieldType, PlayerType, ServerData, getField, DiceType, StateType, getEffectId } from "./shared/socket-types";
 import { random } from "./utils";
 
 export class Dice {
@@ -46,24 +46,21 @@ class Game {
   private rollMax: number = 3;
   private multiplier: number = 1;
   private state: StateType = "lobby";
-  private fieldIdToEffectId: Map<FieldId, EffectId | undefined> = new Map();
+  private effectIds: EffectId[] = FIELD_IDS.map(_ => undefined);
   private activeEffectIds: { rollBased: Set<EffectId>, turnBased: Set<EffectId> } = { rollBased: new Set(), turnBased: new Set() };
 
-  private createEffectMap() {
-    this.fieldIdToEffectId.clear();
-    FIELD_IDS.forEach(fieldId => {
-      const effectId = random.pick([undefined, random.pick(EFFECT_IDS)]);
-      this.fieldIdToEffectId.set(fieldId, effectId);
+  private createEffectIds() {
+    this.effectIds = FIELD_IDS.map(_ => {
+      return random.pick(EFFECT_IDS);
     });
   }
 
   private createPlayer(userId: string): Player {
     const fields: FieldType[] = FIELD_IDS.map(fieldId => {
-      const effectId = this.fieldIdToEffectId.get(fieldId);
+      const effectId = getEffectId(fieldId, this.effectIds);
       const effectState = effectId === undefined ? undefined : "locked";
       return {
         fieldId,
-        effectId,
         effectState
       };
     });
@@ -111,14 +108,26 @@ class Game {
     }
   }
 
-  private sendGame(socket?: AppSocket) {
+  private sendStaticGame(socket?: AppSocket) {
     const data: ServerData = {
-      kind: "set game",
+      kind: "set static game",
+      data: {
+        game: {
+          userIds: this.players.map(player => player.userId),
+          effectIds: this.effectIds
+        }
+      }
+    };
+    this.sendData(data, socket);
+  }
+
+  private sendDynamicGame(socket?: AppSocket) {
+    const data: ServerData = {
+      kind: "set dynamic game",
       data: {
         game: {
           state: this.state,
-          userIds: this.players.map(player => player.userId),
-          activePlayerIdx: this.activePlayerIdx,
+          activeUserId: this.getActivePlayer()?.userId,
           rollCount: this.rollCount,
           rollMax: this.rollMax,
           multiplier: this.multiplier
@@ -154,7 +163,8 @@ class Game {
   }
 
   sendAll(socket?: AppSocket) {
-    this.sendGame(socket);
+    this.sendStaticGame(socket);
+    this.sendDynamicGame(socket);
     this.sendDice(socket);
     this.sendPlayers(socket);
   }
@@ -214,7 +224,7 @@ class Game {
     if (!this.getPlayer(userId))
       return;
 
-    this.createEffectMap();
+    this.createEffectIds();
     this.players = this.players.map(player => this.createPlayer(player.userId));
     this.players = random.shuffle(this.players);
     this.dice = Dice.createDice();
@@ -238,6 +248,7 @@ class Game {
     });
     this.resetEffects();
     this.sendDice();
+    this.sendDynamicGame();
   }
 
   selectDices(userId: string, selected: boolean[]) {
@@ -280,30 +291,30 @@ class Game {
     const field = getField(fieldId, player.fields);
     if (!field)
       return;
-    if (!field.effectId)
-      return;
     if (field.effectState !== "unlocked")
       return;
-    if (this.activeEffectIds.rollBased.has(field.effectId!) || this.activeEffectIds.turnBased.has(field.effectId!))
+    const effectId = getEffectId(fieldId, this.effectIds);
+    if (this.activeEffectIds.rollBased.has(effectId!) || this.activeEffectIds.turnBased.has(effectId!))
       return;
     field.effectState = "in use";
     this.sendField(
       userId,
       field
     );
-    if (field.effectId === "double") {
-      this.activeEffectIds.turnBased.add(field.effectId);
+    if (effectId === "double") {
+      this.activeEffectIds.turnBased.add(effectId);
       this.multiplier = 2;
-      this.sendGame();
-    } else if (field.effectId === "dice") {
-      this.activeEffectIds.turnBased.add(field.effectId);
+      this.sendDynamicGame();
+    } else if (effectId === "dice") {
+      this.activeEffectIds.turnBased.add(effectId);
       const die = new Dice();
       die.roll()
       this.dice.push(die);
       this.sendDice();
-    } else if (field.effectId === "roll") {
-      this.activeEffectIds.turnBased.add(field.effectId);
+    } else if (effectId === "roll") {
+      this.activeEffectIds.turnBased.add(effectId);
       this.rollMax!++;
+      this.sendDynamicGame();
     }
   }
 }
@@ -324,7 +335,7 @@ class Room {
   }
 
   onClientData(socket: AppSocket, clientData: ClientData) {
-    // console.log("reached... here", clientData);
+    // console.log("reached... room", clientData);
     const { kind, data } = clientData;
     const userId = this.getUserId(socket);
     if (!userId)
@@ -374,6 +385,7 @@ class System {
   public room = new Room()
 
   onClientData(socket: AppSocket, clientData: ClientData) {
+    // console.log("reached... system", clientData);
     const { kind, data } = clientData;
     if (kind === "join room") {
       this.room.joinRoom(socket, data.userId);

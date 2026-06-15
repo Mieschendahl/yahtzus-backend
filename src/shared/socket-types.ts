@@ -68,15 +68,16 @@ export const FIELD_IDS = [
 
 export type FieldId = (typeof FIELD_IDS)[number];
 
-export function getFieldIdx(fieldId: FieldId): number {
+export function getFieldIdx(fieldId: string): number {
   return FIELD_IDS.findIndex(fieldId_ => fieldId_ === fieldId);
 }
 
-export function getField(fieldId: FieldId, fields: FieldType[]): FieldType | undefined {
+export function getField(fieldId: string, fields: FieldType[]): FieldType | undefined {
   return fields[getFieldIdx(fieldId)];
 }
 
 export const EFFECT_IDS = [
+  undefined,
   "double",
   "dice",
   "roll"
@@ -84,8 +85,12 @@ export const EFFECT_IDS = [
 
 export type EffectId = (typeof EFFECT_IDS)[number];
 
-export function isEffectId(effectId: EffectId): boolean {
+export function isEffectId(effectId: string): boolean {
   return EFFECT_IDS.some(effectId_ => effectId_ === effectId);
+}
+
+export function getEffectId(fieldId: string, effectIds: EffectId[]): EffectId | undefined {
+  return effectIds[getFieldIdx(fieldId)];
 }
 
 export type EffectState = "locked" | "unlocked" | "in use" | "used";
@@ -98,7 +103,6 @@ export type DiceType = {
 export type FieldType = {
   fieldId: FieldId,
   fieldValue?: number,
-  effectId?: EffectId,
   effectState?: EffectState
 };
 
@@ -109,10 +113,14 @@ export type PlayerType = {
 
 export type StateType = "lobby" | "playing";
 
-export type GameType = {
-  state: StateType,
+export type StaticGameType = {
   userIds: string[],
-  activePlayerIdx?: number,
+  effectIds: EffectId[]
+};
+
+export type DynamicGameType = {
+  state: StateType,
+  activeUserId?: string,
   rollCount: number,
   rollMax: number,
   multiplier: number
@@ -120,9 +128,15 @@ export type GameType = {
 
 export type ServerData = (
   | {
-    kind: "set game",
+    kind: "set static game",
     data: {
-      game: GameType
+      game: StaticGameType
+    }
+  }
+  | {
+    kind: "set dynamic game",
+    data: {
+      game: DynamicGameType
     }
   }
   | {
