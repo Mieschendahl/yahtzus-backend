@@ -1,5 +1,5 @@
 import { AppSocket, io } from "./server";
-import { ClientData, EFFECT_IDS, EffectId, FIELD_IDS, FieldId, FieldType, PlayerType, ServerData, getField, DiceType, StateType, getEffectId, getFieldValues } from "./shared/socket-types";
+import { ClientData, EFFECT_IDS, EffectId, FIELD_IDS, FieldId, FieldType, PlayerType, ServerData, getField, DiceType, StateType, getEffectId, getFieldValues, ROLL_EFFECT_IDS } from "./shared/socket-types";
 import { random } from "./utils";
 
 export class Dice {
@@ -8,8 +8,54 @@ export class Dice {
     public selected: boolean = true
   ) { }
 
-  roll() {
-    this.value = random.integer(1, 6)
+  static rollDice(dice: Dice[], modifier?: EffectId) {
+    const selectedDice = dice.filter(die => die.selected);
+
+    selectedDice.forEach(die => {
+      if (modifier === "high") {
+        die.value = random.integer(4, 6);
+      } else if (modifier === "low") {
+        die.value = random.integer(1, 3);
+      } else if (modifier === "mid") {
+        die.value = random.integer(2, 5);
+      } else {
+        die.value = random.integer(1, 6);
+      }
+    });
+
+    if (modifier === "pair" && selectedDice.length >= 2) {
+      const firstIdx = random.integer(0, selectedDice.length - 1);
+
+      let secondIdx = random.integer(0, selectedDice.length - 2);
+
+      if (secondIdx >= firstIdx) {
+        secondIdx++;
+      }
+
+      selectedDice[secondIdx].value = selectedDice[firstIdx].value;
+    }
+
+    if (modifier === "diff" && selectedDice.length >= 2) {
+      const distinctValues = new Set(
+        selectedDice.map(die => die.value)
+      );
+
+      if (distinctValues.size === 1) {
+        const firstIdx = random.integer(0, selectedDice.length - 1);
+
+        let secondIdx = random.integer(0, selectedDice.length - 2);
+
+        if (secondIdx >= firstIdx) {
+          secondIdx++;
+        }
+
+        const values = [1, 2, 3, 4, 5, 6].filter(
+          value => value !== selectedDice[firstIdx].value
+        );
+
+        selectedDice[secondIdx].value = random.pick(values);
+      }
+    }
   }
 
   toTyped(): DiceType {
@@ -47,11 +93,19 @@ class Game {
   private multiplier: number = 1;
   private state: StateType = "lobby";
   private effectIds: EffectId[] = FIELD_IDS.map(_ => undefined);
-  private activeEffectIds: { rollBased: Set<EffectId>, turnBased: Set<EffectId> } = { rollBased: new Set(), turnBased: new Set() };
+  private activeEffectIds: { rollBased?: EffectId, turnBased: Set<EffectId> } = { turnBased: new Set() };
 
-  private createEffectIds() {
-    this.effectIds = FIELD_IDS.map(_ => {
-      return random.pick(EFFECT_IDS);
+  private createEffectIds(undefinedCount = 3) {
+    const availableEffectIds = EFFECT_IDS.flatMap(effectId =>
+      Array.from({ length: 3 }, () => effectId)
+    ).concat(
+      Array.from({ length: undefinedCount }, () => undefined)
+    );
+
+    this.effectIds = FIELD_IDS.map(() => {
+      const idx = random.integer(0, availableEffectIds.length - 1);
+      const [effectId] = availableEffectIds.splice(idx, 1);
+      return effectId;
     });
   }
 
@@ -181,7 +235,7 @@ class Game {
   }
 
   private resetEffects(endTurn: boolean = false) {
-    this.activeEffectIds.rollBased.clear();
+    this.activeEffectIds.rollBased = undefined;
     if (!endTurn)
       return;
     this.rollCount = 0;
@@ -196,8 +250,8 @@ class Game {
     return this.players.slice(-1)[0].fields.every(({fieldValue}) => fieldValue !== undefined);
   }
 
-  startGame(userId: string) {
-    if (this.state !== "lobby")
+  startGame(userId: string, force: boolean = true) {
+    if (!force && this.state !== "lobby")
       return;
     if (!this.getPlayer(userId))
       return;
@@ -219,11 +273,7 @@ class Game {
     if (this.rollCount! >= this.rollMax!)
       return;
     this.rollCount!++;
-    this.dice.forEach(dice => {
-      if (dice.selected) {
-        dice.roll();
-      }
-    });
+    Dice.rollDice(this.dice, this.activeEffectIds.rollBased);
     this.resetEffects();
     this.sendDice();
     this.sendDynamicGame();
@@ -270,16 +320,17 @@ class Game {
     const player = this.getActivePlayer(userId);
     if (!player)
       return;
-    if (this.rollCount! === 0)
-      return;
     const field = getField(fieldId, player.fields);
     if (!field)
       return;
     if (field.effectState !== "unlocked")
       return;
     const effectId = getEffectId(fieldId, this.effectIds);
-    if (this.activeEffectIds.rollBased.has(effectId!) || this.activeEffectIds.turnBased.has(effectId!))
+    if (this.activeEffectIds.turnBased.has(effectId!))
       return;
+    if (ROLL_EFFECT_IDS.includes(effectId) && this.activeEffectIds.rollBased !== undefined)
+      return;
+    if (effectId)
     field.effectState = "used";
     this.sendField(
       userId,
@@ -289,16 +340,12 @@ class Game {
       this.activeEffectIds.turnBased.add(effectId);
       this.multiplier = 2;
       this.sendDynamicGame();
-    } else if (effectId === "dice") {
-      this.activeEffectIds.turnBased.add(effectId);
-      const die = new Dice();
-      die.roll()
-      this.dice.push(die);
-      this.sendDice();
     } else if (effectId === "roll") {
       this.activeEffectIds.turnBased.add(effectId);
       this.rollMax!++;
       this.sendDynamicGame();
+    } else {
+      this.activeEffectIds.rollBased = effectId;
     }
   }
 }
@@ -330,6 +377,8 @@ class Room {
       this.game.leavePlayers(userId);
     } else if (kind === "start game") {
       this.game.startGame(userId);
+    } else if (kind === "restart game") {
+      this.game.startGame(userId, true);
     } else if (kind === "roll dices") {
       this.game.rollDice(userId);
     } else if (kind === "select dices") {

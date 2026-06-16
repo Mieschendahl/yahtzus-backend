@@ -43,6 +43,10 @@ export type ClientData = (
       fieldId: FieldId
     }
   }
+  | {
+    kind: "restart game",
+    data?: undefined
+  }
 );
 
 // export type ClientDataCb = (
@@ -200,11 +204,23 @@ export function getDerivedFieldValues(fields: FieldType[]): DerivedFieldType[] {
 export const EFFECT_IDS = [
   undefined,
   "double",
-  "dice",
-  "roll"
+  "roll",
+  "high",
+  "low",
+  "mid",
+  "pair",
+  "diff"
 ] as const;
 
 export type EffectId = (typeof EFFECT_IDS)[number];
+
+export const ROLL_EFFECT_IDS: EffectId[] = [
+  "high",
+  "low",
+  "mid",
+  "pair",
+  "diff"
+] as const;
 
 export function isEffectId(effectId: string): boolean {
   return EFFECT_IDS.some(effectId_ => effectId_ === effectId);
