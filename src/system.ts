@@ -95,7 +95,7 @@ class Game {
   private effectIds: EffectId[] = FIELD_IDS.map(_ => undefined);
   private activeEffectIds: { rollBased?: EffectId, turnBased: Set<EffectId> } = { turnBased: new Set() };
 
-  private createEffectIds(undefinedCount = 3) {
+  private createEffectIds(undefinedCount = 16) {
     const availableEffectIds = EFFECT_IDS.flatMap(effectId =>
       Array.from({ length: 3 }, () => effectId)
     ).concat(
