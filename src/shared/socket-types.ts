@@ -125,10 +125,12 @@ export function getFieldValues(
 
   const hasNOfAKind = (n: number) => counts.some(count => count >= n);
 
-  const hasFullHouse =
-    counts.some(count => count >= 3) &&
-    counts.some(count => count >= 2) &&
-    !hasNOfAKind(5);
+  const hasFullHouse = counts.some((tripleCount, tripleIndex) =>
+    tripleCount >= 3 &&
+    counts.some((doubleCount, doubleIndex) =>
+      doubleIndex !== tripleIndex && doubleCount >= 2
+    )
+  );
 
   const hasSmallStraight =
     [0, 1, 2, 3].every(i => counts[i] > 0) ||
