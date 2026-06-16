@@ -212,7 +212,7 @@ class Game {
     this.sendAll();
   }
 
-  rollDices(userId: string) {
+  rollDice(userId: string) {
     const player = this.getActivePlayer(userId);
     if (!player)
       return;
@@ -232,7 +232,7 @@ class Game {
   selectDices(userId: string, selected: boolean[]) {
     if (!this.getActivePlayer(userId))
       return;
-    if (this.rollCount! === 0 || this.rollCount! >= 3)
+    if (this.rollCount! === 0)
       return;
     this.dice.forEach((dice, i) => dice.selected = i < selected.length ? selected[i] : true);
     this.sendDice();
@@ -330,7 +330,7 @@ class Room {
     } else if (kind === "start game") {
       this.game.startGame(userId);
     } else if (kind === "roll dices") {
-      this.game.rollDices(userId);
+      this.game.rollDice(userId);
     } else if (kind === "select dices") {
       this.game.selectDices(userId, data.selected);
     } else if (kind === "select field") {
