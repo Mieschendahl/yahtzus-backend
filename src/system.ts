@@ -262,6 +262,7 @@ class Game {
     if (this.isGameFinished()) {
       this.state = "lobby";
     }
+    this.sendDice();
     this.sendDynamicGame();
   }
 
