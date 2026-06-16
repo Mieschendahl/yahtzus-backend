@@ -1,0 +1,26 @@
+services:
+  yahtzus-test-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        START_SCRIPT: start:test
+    container_name: yahtzus-test-backend
+    restart: unless-stopped
+    networks:
+      - web
+
+  yahtzus-prod-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        START_SCRIPT: start:prod
+    container_name: yahtzus-prod-backend
+    restart: unless-stopped
+    networks:
+      - web
+
+networks:
+  web:
+    external: true
