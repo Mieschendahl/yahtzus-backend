@@ -16,7 +16,7 @@
             username: deploy
             key: ${{ secrets.SERVER_SSH_KEY }}
             script: |
-              cd /opt/yathzus/test/backend
+              cd /opt/yahtzus/test/backend
               git pull origin test
-              docker compose up -d --build yathzus-test-backend
+              docker compose up -d --build yahtzus-test-backend
               docker compose ps
