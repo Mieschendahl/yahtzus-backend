@@ -1,3 +1,4 @@
+import { die } from "random-js";
 import { AppSocket, io } from "./server";
 import { ClientData, EFFECT_IDS, EffectId, FIELD_IDS, FieldId, FieldType, PlayerType, ServerData, getField, DiceType, StateType, getEffectId, getFieldValues } from "./shared/socket-types";
 import { random } from "./utils";
@@ -10,13 +11,14 @@ export class Dice {
 
   static rollDice(dice: Dice[], effectId?: EffectId) {
     const selectedDice = random.shuffle(dice.filter(die => die.selected));
-    const values = [1, 2, 3, 4, 5, 6];
+    const values = [1, 2, 3, 4, 5, 6];7
+    const guard = (ls: number[], value: number) => ls.length === 0 ? [value] : ls;
 
     selectedDice.forEach(die => {
       if (effectId === "high") {
-        die.value = random.pick(values.filter(value => value >= die.value));
+        die.value = random.pick(guard(values.filter(value => value > die.value), die.value));
       } else if (effectId === "low") {
-        die.value = random.pick(values.filter(value => value <= die.value));
+        die.value = random.pick(guard(values.filter(value => value < die.value), die.value));
       } else if (effectId === "not") {
         die.value = random.pick(values.filter(value => value != die.value));
       } else if (effectId === "flip") {
