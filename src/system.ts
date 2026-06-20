@@ -120,7 +120,7 @@ class Game {
   }
 
   joinPlayers(userId: string) {
-    if (!["lobby", "finished"].includes(this.state))
+    if (this.state !== "lobby")
       return;
     if (this.getPlayer(userId))
       return;
@@ -129,7 +129,7 @@ class Game {
   }
 
   leavePlayers(userId: string) {
-    if (!["lobby", "finished"].includes(this.state))
+    if (this.state !== "lobby")
       return;
     if (!this.getPlayer(userId))
       return;
@@ -225,11 +225,11 @@ class Game {
   }
 
   private isGameFinished(): boolean {
-    return this.players.slice(-1)[0].fields.every(({fieldValue}) => fieldValue !== undefined) || true;
+    return this.players.slice(-1)[0].fields.every(({fieldValue}) => fieldValue !== undefined);
   }
 
   startGame(userId: string, force: boolean = true) {
-    if (!force && !["lobby", "finished"].includes(this.state))
+    if (!force && this.state !== "lobby")
       return;
     if (!this.getPlayer(userId))
       return;
@@ -292,7 +292,7 @@ class Game {
     );
     this.sendDice();
     if (this.isGameFinished()) {
-      this.state = "finished";
+      this.state = "lobby";
       this.rollCount = undefined;
       this.sendDynamicGame(undefined, "game finished");
     } else {
