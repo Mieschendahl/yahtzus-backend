@@ -120,7 +120,7 @@ class Game {
   }
 
   joinPlayers(userId: string) {
-    if (this.state !== "lobby")
+    if (!["lobby", "finished"].includes(this.state))
       return;
     if (this.getPlayer(userId))
       return;
@@ -129,7 +129,7 @@ class Game {
   }
 
   leavePlayers(userId: string) {
-    if (this.state !== "lobby")
+    if (!["lobby", "finished"].includes(this.state))
       return;
     if (!this.getPlayer(userId))
       return;
@@ -164,7 +164,7 @@ class Game {
       data: {
         game: {
           state: this.state,
-          activeUserId: this.activePlayerIdx !== undefined ? this.players[this.activePlayerIdx].userId : undefined,
+          activeUserId: this.state === "playing" ? this.players[this.activePlayerIdx!].userId : undefined,
           rollCount: this.rollCount,
           activeEffect: this.activeEffectId,
           event
@@ -225,11 +225,11 @@ class Game {
   }
 
   private isGameFinished(): boolean {
-    return this.players.slice(-1)[0].fields.every(({fieldValue}) => fieldValue !== undefined);
+    return this.players.slice(-1)[0].fields.every(({fieldValue}) => fieldValue !== undefined) || true;
   }
 
   startGame(userId: string, force: boolean = true) {
-    if (!force && this.state !== "lobby")
+    if (!force && !["lobby", "finished"].includes(this.state))
       return;
     if (!this.getPlayer(userId))
       return;
@@ -243,6 +243,7 @@ class Game {
     this.activePlayerIdx = 0;
     this.sendAll(undefined, "game finished");
   }
+
 
   rollDice(userId: string) {
     const player = this.getActivePlayer(userId);
@@ -291,7 +292,7 @@ class Game {
     );
     this.sendDice();
     if (this.isGameFinished()) {
-      this.state = "lobby";
+      this.state = "finished";
       this.rollCount = undefined;
       this.sendDynamicGame(undefined, "game finished");
     } else {

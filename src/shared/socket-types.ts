@@ -237,7 +237,7 @@ export type PlayerType = {
   fields: FieldType[]
 };
 
-export type StateType = "lobby" | "playing";
+export type StateType = "lobby" | "playing" | "finished";
 
 export type StaticGameType = {
   userIds: string[],
