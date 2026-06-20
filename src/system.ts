@@ -393,6 +393,8 @@ class System {
       this.room.joinRoom(socket, data.userId);
     } else if (kind === "leave room") {
       this.room.leaveRoom(socket);
+    } else if (kind === "reset room") {
+      this.room = new Room();
     } else {
       this.room.onClientData(socket, clientData);
     }

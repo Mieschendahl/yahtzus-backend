@@ -22,6 +22,14 @@ export type ClientData = (
     data?: undefined,
   }
   | {
+    kind: "restart game",
+    data?: undefined
+  }
+  | {
+    kind: "reset room",
+    data?: undefined
+  }
+  | {
     kind: "roll dices",
     data?: undefined,
   }
@@ -42,10 +50,6 @@ export type ClientData = (
     data: {
       fieldId: FieldId
     }
-  }
-  | {
-    kind: "restart game",
-    data?: undefined
   }
 );
 
