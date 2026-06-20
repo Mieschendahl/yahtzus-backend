@@ -1,5 +1,5 @@
 import { AppSocket, io } from "./server";
-import { ClientData, EFFECT_IDS, EffectId, FIELD_IDS, FieldId, FieldType, PlayerType, ServerData, getField, DiceType, StateType, getEffectId, getFieldValues, ROLL_EFFECT_IDS } from "./shared/socket-types";
+import { ClientData, EFFECT_IDS, EffectId, FIELD_IDS, FieldId, FieldType, PlayerType, ServerData, getField, DiceType, StateType, getEffectId, getFieldValues } from "./shared/socket-types";
 import { random } from "./utils";
 
 export class Dice {
@@ -8,53 +8,26 @@ export class Dice {
     public selected: boolean = true
   ) { }
 
-  static rollDice(dice: Dice[], modifier?: EffectId) {
-    const selectedDice = dice.filter(die => die.selected);
+  static rollDice(dice: Dice[], effectId?: EffectId) {
+    const selectedDice = random.shuffle(dice.filter(die => die.selected));
+    const values = [1, 2, 3, 4, 5, 6];
 
     selectedDice.forEach(die => {
-      if (modifier === "high") {
-        die.value = random.integer(4, 6);
-      } else if (modifier === "low") {
-        die.value = random.integer(1, 3);
-      } else if (modifier === "mid") {
-        die.value = random.integer(2, 5);
+      if (effectId === "high") {
+        die.value = random.pick(values.filter(value => value >= die.value));
+      } else if (effectId === "low") {
+        die.value = random.pick(values.filter(value => value <= die.value));
+      } else if (effectId === "not") {
+        die.value = random.pick(values.filter(value => value != die.value));
+      } else if (effectId === "flip") {
+        die.value = 7 - die.value;
       } else {
         die.value = random.integer(1, 6);
       }
     });
 
-    if (modifier === "pair" && selectedDice.length >= 2) {
-      const firstIdx = random.integer(0, selectedDice.length - 1);
-
-      let secondIdx = random.integer(0, selectedDice.length - 2);
-
-      if (secondIdx >= firstIdx) {
-        secondIdx++;
-      }
-
-      selectedDice[secondIdx].value = selectedDice[firstIdx].value;
-    }
-
-    if (modifier === "diff" && selectedDice.length >= 2) {
-      const distinctValues = new Set(
-        selectedDice.map(die => die.value)
-      );
-
-      if (distinctValues.size === 1) {
-        const firstIdx = random.integer(0, selectedDice.length - 1);
-
-        let secondIdx = random.integer(0, selectedDice.length - 2);
-
-        if (secondIdx >= firstIdx) {
-          secondIdx++;
-        }
-
-        const values = [1, 2, 3, 4, 5, 6].filter(
-          value => value !== selectedDice[firstIdx].value
-        );
-
-        selectedDice[secondIdx].value = random.pick(values);
-      }
+    if (effectId === "pair" && selectedDice.length >= 2) {
+      selectedDice[1].value = selectedDice[0].value;
     }
   }
 
@@ -90,10 +63,9 @@ class Game {
   private activePlayerIdx?: number;
   private rollCount: number = 0;
   private rollMax: number = 3;
-  private multiplier: number = 1;
   private state: StateType = "lobby";
   private effectIds: EffectId[] = FIELD_IDS.map(_ => undefined);
-  private activeEffectIds: { rollBased?: EffectId, turnBased: Set<EffectId> } = { turnBased: new Set() };
+  private activeEffectId?: EffectId;
 
   private createEffectIds(undefinedCount = 16) {
     const availableEffectIds = EFFECT_IDS.flatMap(effectId =>
@@ -183,8 +155,7 @@ class Game {
           state: this.state,
           activeUserId: this.activePlayerIdx !== undefined ? this.players[this.activePlayerIdx].userId : undefined,
           rollCount: this.rollCount,
-          rollMax: this.rollMax,
-          multiplier: this.multiplier
+          activeEffect: this.activeEffectId
         }
       }
     };
@@ -234,16 +205,12 @@ class Game {
     this.sendData(data, socket);
   }
 
-  private resetEffects(endTurn: boolean = false) {
-    this.activeEffectIds.rollBased = undefined;
-    if (!endTurn)
-      return;
+  private advanceTurn() {
     this.rollCount = 0;
-    this.multiplier = 1;
     this.rollMax = 3;
     this.dice = Dice.createDice();
     this.activePlayerIdx = (this.activePlayerIdx! + 1) % this.players.length;
-    this.activeEffectIds.turnBased.clear();
+    this.activeEffectId = undefined;
   }
 
   private isGameFinished(): boolean {
@@ -260,9 +227,9 @@ class Game {
     this.players = this.players.map(player => this.createPlayer(player.userId));
     this.players = random.shuffle(this.players);
     this.dice = Dice.createDice();
-    this.activePlayerIdx = 0;
     this.state = "playing";
-    this.resetEffects(true);
+    this.advanceTurn();
+    this.activePlayerIdx = 0;
     this.sendAll();
   }
 
@@ -273,8 +240,8 @@ class Game {
     if (this.rollCount! >= this.rollMax!)
       return;
     this.rollCount!++;
-    Dice.rollDice(this.dice, this.activeEffectIds.rollBased);
-    this.resetEffects();
+    Dice.rollDice(this.dice, this.activeEffectId);
+    this.activeEffectId = undefined;
     this.sendDice();
     this.sendDynamicGame();
   }
@@ -299,12 +266,12 @@ class Game {
       return;
     if (field.fieldValue !== undefined)
       return;
-    const fields_ = getFieldValues(this.dice.map(dice => dice.toTyped()), this.multiplier);
+    const fields_ = getFieldValues(this.dice.map(dice => dice.toTyped()));
     field.fieldValue = getField(fieldId, fields_)?.fieldValue!;
     if (field.effectState !== undefined && field.fieldValue > 0) {
       field.effectState = "unlocked";
     }
-    this.resetEffects(true);
+    this.advanceTurn();
     this.sendField(
       userId,
       field
@@ -320,33 +287,23 @@ class Game {
     const player = this.getActivePlayer(userId);
     if (!player)
       return;
+    if (this.rollCount === 0)
+      return;
+    if (this.activeEffectId !== undefined)
+      return;
     const field = getField(fieldId, player.fields);
     if (!field)
       return;
     if (field.effectState !== "unlocked")
       return;
     const effectId = getEffectId(fieldId, this.effectIds);
-    if (this.activeEffectIds.turnBased.has(effectId!))
-      return;
-    if (ROLL_EFFECT_IDS.includes(effectId) && this.activeEffectIds.rollBased !== undefined)
-      return;
-    if (effectId)
+    this.activeEffectId = effectId;
     field.effectState = "used";
     this.sendField(
       userId,
       field
     );
-    if (effectId === "double") {
-      this.activeEffectIds.turnBased.add(effectId);
-      this.multiplier = 2;
-      this.sendDynamicGame();
-    } else if (effectId === "roll") {
-      this.activeEffectIds.turnBased.add(effectId);
-      this.rollMax!++;
-      this.sendDynamicGame();
-    } else {
-      this.activeEffectIds.rollBased = effectId;
-    }
+    this.sendDynamicGame();
   }
 }
 

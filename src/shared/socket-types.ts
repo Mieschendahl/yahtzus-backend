@@ -113,10 +113,7 @@ export function getDerivedField(fieldId: string, fields: DerivedFieldType[]): De
   return fields.find(field => field.fieldId === fieldId);
 }
 
-export function getFieldValues(
-  dice: DiceType[],
-  multiplier: number,
-): FieldType[] {
+export function getFieldValues(dice: DiceType[]): FieldType[] {
   const counts = Array.from({ length: 6 }, () => 0);
 
   dice.forEach(die => {
@@ -164,7 +161,7 @@ export function getFieldValues(
 
     return {
       fieldId,
-      fieldValue: fieldValue * multiplier,
+      fieldValue
     };
   });
 }
@@ -203,24 +200,14 @@ export function getDerivedFieldValues(fields: FieldType[]): DerivedFieldType[] {
 
 export const EFFECT_IDS = [
   undefined,
-  "double",
-  "roll",
   "high",
   "low",
-  "mid",
+  "not",
   "pair",
-  "diff"
+  "flip"
 ] as const;
 
 export type EffectId = (typeof EFFECT_IDS)[number];
-
-export const ROLL_EFFECT_IDS: EffectId[] = [
-  "high",
-  "low",
-  "mid",
-  "pair",
-  "diff"
-] as const;
 
 export function isEffectId(effectId: string): boolean {
   return EFFECT_IDS.some(effectId_ => effectId_ === effectId);
@@ -253,8 +240,7 @@ export type DynamicGameType = {
   state: StateType,
   activeUserId?: string,
   rollCount: number,
-  rollMax: number,
-  multiplier: number
+  activeEffect?: EffectId
 };
 
 export type ServerData = (
