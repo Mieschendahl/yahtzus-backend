@@ -200,11 +200,15 @@ export function getDerivedFieldValues(fields: FieldType[]): DerivedFieldType[] {
 
 export const EFFECT_IDS = [
   undefined,
+  "inc",
+  "dec",
+  "flip",
   "high",
   "low",
   "not",
+  "even",
+  "odd",
   "pair",
-  "flip"
 ] as const;
 
 export type EffectId = (typeof EFFECT_IDS)[number];

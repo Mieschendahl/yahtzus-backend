@@ -13,16 +13,25 @@ export class Dice {
     const selectedDice = random.shuffle(dice.filter(die => die.selected));
     const values = [1, 2, 3, 4, 5, 6];7
     const guard = (ls: number[], value: number) => ls.length === 0 ? [value] : ls;
+    const clamp = (value: number) => Math.max(1, Math.min(6, value));
 
     selectedDice.forEach(die => {
-      if (effectId === "high") {
-        die.value = random.pick(guard(values.filter(value => value > die.value), die.value));
-      } else if (effectId === "low") {
-        die.value = random.pick(guard(values.filter(value => value < die.value), die.value));
-      } else if (effectId === "not") {
-        die.value = random.pick(values.filter(value => value != die.value));
+      if (effectId === "inc") {
+        die.value = clamp(die.value + 1);
+      } else if (effectId === "dec") {
+        die.value = clamp(die.value - 1);
       } else if (effectId === "flip") {
         die.value = 7 - die.value;
+      } else if (effectId === "high") {
+        die.value = random.pick(values.filter(value => value >= die.value));
+      } else if (effectId === "low") {
+        die.value = random.pick(values.filter(value => value <= die.value));
+      } else if (effectId === "not") {
+        die.value = random.pick(values.filter(value => value != die.value));
+      } else if (effectId === "even") {
+      die.value = random.pick(values.filter(value => value % 2 === 0));
+      } else if (effectId === "odd") {
+      die.value = random.pick(values.filter(value => value % 2 === 1));
       } else {
         die.value = random.integer(1, 6);
       }
@@ -69,11 +78,12 @@ class Game {
   private effectIds: EffectId[] = FIELD_IDS.map(_ => undefined);
   private activeEffectId?: EffectId;
 
-  private createEffectIds(undefinedCount = 16) {
-    const availableEffectIds = EFFECT_IDS.flatMap(effectId =>
-      Array.from({ length: 3 }, () => effectId)
+  private createEffectIds(maxRepetations = 3, undefMaxRepetitions = 13) {
+    const filteredEffectIds = EFFECT_IDS.filter(effectId => effectId !== undefined);
+    const availableEffectIds: EffectId[] = filteredEffectIds.flatMap(effectId =>
+      Array.from({ length: maxRepetations }, () => effectId) as EffectId[]
     ).concat(
-      Array.from({ length: undefinedCount }, () => undefined)
+      Array.from({ length: undefMaxRepetitions }, () => undefined) as EffectId[]
     );
 
     this.effectIds = FIELD_IDS.map(() => {
