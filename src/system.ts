@@ -1,6 +1,6 @@
 import { die } from "random-js";
 import { AppSocket, io } from "./server";
-import { ClientData, EFFECT_IDS, EffectId, FIELD_IDS, FieldId, FieldType, PlayerType, ServerData, getField, DiceType, StateType, getEffectId, getFieldValues } from "./shared/socket-types";
+import { ClientData, EFFECT_IDS, EffectId, FIELD_IDS, FieldId, FieldType, PlayerType, ServerData, getField, DiceType, StateType, getEffectId, getFieldValues, EventType } from "./shared/socket-types";
 import { random } from "./utils";
 
 export class Dice {
@@ -72,8 +72,7 @@ class Game {
   private players: Player[] = [];
   private dice: Dice[] = Dice.createDice();
   private activePlayerIdx?: number;
-  private rollCount: number = 0;
-  private rollMax: number = 3;
+  private rollCount?: number = 0;
   private state: StateType = "lobby";
   private effectIds: EffectId[] = FIELD_IDS.map(_ => undefined);
   private activeEffectId?: EffectId;
@@ -159,7 +158,7 @@ class Game {
     this.sendData(data, socket);
   }
 
-  private sendDynamicGame(socket?: AppSocket) {
+  private sendDynamicGame(socket?: AppSocket, event?: EventType) {
     const data: ServerData = {
       kind: "set dynamic game",
       data: {
@@ -167,7 +166,8 @@ class Game {
           state: this.state,
           activeUserId: this.activePlayerIdx !== undefined ? this.players[this.activePlayerIdx].userId : undefined,
           rollCount: this.rollCount,
-          activeEffect: this.activeEffectId
+          activeEffect: this.activeEffectId,
+          event
         }
       }
     };
@@ -199,9 +199,9 @@ class Game {
     this.sendData(data, socket);
   }
 
-  sendAll(socket?: AppSocket) {
+  sendAll(socket?: AppSocket, event?: EventType) {
     this.sendStaticGame(socket);
-    this.sendDynamicGame(socket);
+    this.sendDynamicGame(socket, event);
     this.sendDice(socket);
     this.sendPlayers(socket);
   }
@@ -219,7 +219,6 @@ class Game {
 
   private advanceTurn() {
     this.rollCount = 0;
-    this.rollMax = 3;
     this.dice = Dice.createDice();
     this.activePlayerIdx = (this.activePlayerIdx! + 1) % this.players.length;
     this.activeEffectId = undefined;
@@ -242,20 +241,22 @@ class Game {
     this.state = "playing";
     this.advanceTurn();
     this.activePlayerIdx = 0;
-    this.sendAll();
+    this.sendAll(undefined, "game finished");
   }
 
   rollDice(userId: string) {
     const player = this.getActivePlayer(userId);
     if (!player)
       return;
-    if (this.rollCount! >= this.rollMax!)
+    if (this.rollCount! >= 3)
+      return;
+    if (!this.dice.some(dice => dice.selected))
       return;
     this.rollCount!++;
     Dice.rollDice(this.dice, this.activeEffectId);
     this.activeEffectId = undefined;
     this.sendDice();
-    this.sendDynamicGame();
+    this.sendDynamicGame(undefined, "next roll");
   }
 
   selectDices(userId: string, selected: boolean[]) {
@@ -288,18 +289,21 @@ class Game {
       userId,
       field
     );
+    this.sendDice();
     if (this.isGameFinished()) {
       this.state = "lobby";
+      this.rollCount = undefined;
+      this.sendDynamicGame(undefined, "game finished");
+    } else {
+      this.sendDynamicGame(undefined, "next turn");
     }
-    this.sendDice();
-    this.sendDynamicGame();
   }
 
   selectEffect(userId: string, fieldId: FieldId) {
     const player = this.getActivePlayer(userId);
     if (!player)
       return;
-    if (this.rollCount === 0 || this.rollCount >= this.rollMax)
+    if (this.rollCount === 0 || this.rollCount! >= 3)
       return;
     if (this.activeEffectId !== undefined)
       return;
@@ -315,7 +319,7 @@ class Game {
       userId,
       field
     );
-    this.sendDynamicGame();
+    this.sendDynamicGame(undefined, "effect used");
   }
 }
 

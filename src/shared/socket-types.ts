@@ -244,11 +244,14 @@ export type StaticGameType = {
   effectIds: EffectId[]
 };
 
+export type EventType = "next turn" | "next roll" | "effect used" | "game finished";
+
 export type DynamicGameType = {
   state: StateType,
   activeUserId?: string,
-  rollCount: number,
-  activeEffect?: EffectId
+  rollCount?: number,
+  activeEffect?: EffectId,
+  event?: EventType
 };
 
 export type ServerData = (
