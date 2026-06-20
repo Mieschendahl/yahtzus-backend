@@ -289,7 +289,7 @@ class Game {
     const player = this.getActivePlayer(userId);
     if (!player)
       return;
-    if (this.rollCount === 0)
+    if (this.rollCount === 0 || this.rollCount >= this.rollMax)
       return;
     if (this.activeEffectId !== undefined)
       return;
