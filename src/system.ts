@@ -22,9 +22,9 @@ export class Dice {
       } else if (effectId === "flip") {
         die.value = 7 - die.value;
       } else if (effectId === "high") {
-        die.value = random.pick(values.filter(value => value >= die.value));
+        die.value = random.pick(die.value === 6 ? [6] : values.filter(value => value > die.value));
       } else if (effectId === "low") {
-        die.value = random.pick(values.filter(value => value <= die.value));
+        die.value = random.pick(die.value === 1 ? [1] : values.filter(value => value < die.value));
       } else if (effectId === "not") {
         die.value = random.pick(values.filter(value => value != die.value));
       } else if (effectId === "even") {
