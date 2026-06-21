@@ -32,7 +32,7 @@ export class Dice {
       } else if (effectId === "odd") {
         die.value = random.pick(values.filter(value => value % 2 === 1));
       } else {
-        die.value = random.integer(1, 2);
+        die.value = random.integer(1, 6);
       }
     });
 
