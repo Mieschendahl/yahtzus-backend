@@ -273,20 +273,28 @@ class Game {
     if (!player)
       return;
     if (this.rollCount! === 0)
-      return;
+      return; 
     const field = getField(fieldId, player.fields);
     if (!field)
       return;
     if (field.fieldValue !== undefined)
       return;
 
-    const field_yahtzus = getField("yahtzus", player.fields);
-    if (this.dice.every(die => die.value === this.dice[0].value) && (field_yahtzus?.fieldValue ?? 0) > 0) {
-      field_yahtzus!.fieldValue! += 50;
+    const field_yahtzus = getField("yahtzee", player.fields);
+    const field_yahtzus_value = field_yahtzus?.fieldValue;
+    const field_values = getFieldValues(this.dice.map(dice => dice.toTyped()), (field_yahtzus_value ?? 0) > 0);
+    const field_value = getField(fieldId, field_values)?.fieldValue!;
+    const yahtzee_value = getField("yahtzee", field_values)?.fieldValue;
+
+    if (field_value !== undefined && field_value > 0 && yahtzee_value !== undefined && yahtzee_value > 0 && field_yahtzus_value != undefined && field_yahtzus_value > 0) {
+      field_yahtzus!.fieldValue! += yahtzee_value;
+      this.sendField(
+        userId,
+        field_yahtzus!
+      );
     }
 
-    const fields_ = getFieldValues(this.dice.map(dice => dice.toTyped()));
-    field.fieldValue = getField(fieldId, fields_)?.fieldValue!;
+    field.fieldValue = field_value;
     if (field.effectState !== undefined && field.fieldValue > 0) {
       field.effectState = "unlocked";
     }

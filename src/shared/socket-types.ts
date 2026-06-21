@@ -117,7 +117,7 @@ export function getDerivedField(fieldId: string, fields: DerivedFieldType[]): De
   return fields.find(field => field.fieldId === fieldId);
 }
 
-export function getFieldValues(dice: DiceType[]): FieldType[] {
+export function getFieldValues(dice: DiceType[], hadYahtzee: boolean = false): FieldType[] {
   const counts = Array.from({ length: 6 }, () => 0);
 
   dice.forEach(die => {
@@ -157,9 +157,9 @@ export function getFieldValues(dice: DiceType[]): FieldType[] {
     else if (fieldId === "sixes") fieldValue = counts[5] * 6;
     else if (fieldId === "three of a kind") fieldValue = hasNOfAKind(3) ? diceTotal : 0;
     else if (fieldId === "four of a kind") fieldValue = hasNOfAKind(4) ? diceTotal : 0;
-    else if (fieldId === "full house") fieldValue = hasFullHouse ? 25 : 0;
-    else if (fieldId === "small straight") fieldValue = hasSmallStraight ? 30 : 0;
-    else if (fieldId === "large straight") fieldValue = hasLargeStraight ? 40 : 0;
+    else if (fieldId === "full house") fieldValue = hasFullHouse || hadYahtzee ? 25 : 0;
+    else if (fieldId === "small straight") fieldValue = hasSmallStraight || hadYahtzee ? 30 : 0;
+    else if (fieldId === "large straight") fieldValue = hasLargeStraight || hadYahtzee ? 40 : 0;
     else if (fieldId === "yahtzee") fieldValue = hasNOfAKind(5) ? 50 : 0;
     else if (fieldId === "chance") fieldValue = diceTotal;
 
