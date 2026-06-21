@@ -11,8 +11,7 @@ export class Dice {
 
   static rollDice(dice: Dice[], effectId?: EffectId) {
     const selectedDice = random.shuffle(dice.filter(die => die.selected));
-    const values = [1, 2, 3, 4, 5, 6];7
-    const guard = (ls: number[], value: number) => ls.length === 0 ? [value] : ls;
+    const values = [1, 2, 3, 4, 5, 6];
     const clamp = (value: number) => Math.max(1, Math.min(6, value));
 
     selectedDice.forEach(die => {
@@ -29,9 +28,9 @@ export class Dice {
       } else if (effectId === "not") {
         die.value = random.pick(values.filter(value => value != die.value));
       } else if (effectId === "even") {
-      die.value = random.pick(values.filter(value => value % 2 === 0));
+        die.value = random.pick(values.filter(value => value % 2 === 0));
       } else if (effectId === "odd") {
-      die.value = random.pick(values.filter(value => value % 2 === 1));
+        die.value = random.pick(values.filter(value => value % 2 === 1));
       } else {
         die.value = random.integer(1, 6);
       }
@@ -280,6 +279,12 @@ class Game {
       return;
     if (field.fieldValue !== undefined)
       return;
+
+    const field_yahtzus = getField("yahtzus", player.fields);
+    if (this.dice.every(die => die.value === this.dice[0].value) && (field_yahtzus?.fieldValue ?? 0) > 0) {
+      field_yahtzus!.fieldValue! += 50;
+    }
+
     const fields_ = getFieldValues(this.dice.map(dice => dice.toTyped()));
     field.fieldValue = getField(fieldId, fields_)?.fieldValue!;
     if (field.effectState !== undefined && field.fieldValue > 0) {
