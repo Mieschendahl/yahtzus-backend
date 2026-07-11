@@ -1,3 +1,4 @@
+name: yahtzus-backend
 services:
   yahtzus-test-backend:
     build:
